@@ -16,8 +16,15 @@ jobs:
       - name: Save the build key (runner is wiped after the job)
         run: |
           mkdir -p ~/.appstoreconnect/private_keys
-          printf '%s\n' "$ASC_KEY_P8" > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
-          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          F=~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          # The secret may have lost its BEGIN/END lines when pasted from a phone: add them back if missing.
+          if printf '%s' "$ASC_KEY_P8" | grep -q 'BEGIN PRIVATE KEY'; then
+            printf '%s\n' "$ASC_KEY_P8" > "$F"
+          else
+            { echo '-----BEGIN PRIVATE KEY-----'; printf '%s\n' "$ASC_KEY_P8" | tr -d ' \r'; echo '-----END PRIVATE KEY-----'; } > "$F"
+          fi
+          chmod 600 "$F"
+          echo "key file lines: $(wc -l < "$F"), valid PEM: $(openssl pkey -in "$F" -noout >/dev/null 2>&1 && echo yes || echo no)"
       - name: Archive (Apple creates the signing certificate and profiles)
         run: |
           xcodebuild archive -project PrayerWidgets.xcodeproj -scheme PrayerWidgets \
