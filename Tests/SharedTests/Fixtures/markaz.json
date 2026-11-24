@@ -1,0 +1,42 @@
+{
+ "mosque": {
+  "slug": "markaz-ibraheem",
+  "name": "Markaz Ibraheem",
+  "timezone": "Europe/London"
+ },
+ "date": "2026-11-23",
+ "beginning": {
+  "fajr": "06:04",
+  "sunrise": "07:49",
+  "dhuhr": "12:00",
+  "asr": "13:41",
+  "maghrib": "16:06",
+  "isha": "17:46"
+ },
+ "jamaah": {
+  "fajr": "07:00",
+  "dhuhr": "12:15",
+  "asr": "14:00",
+  "maghrib": "16:06",
+  "isha": "18:30"
+ },
+ "jamaah2": {
+  "dhuhr": "13:20",
+  "asr": "15:00",
+  "isha": "20:30"
+ },
+ "jumuah": [
+  "12:00",
+  "13:00"
+ ],
+ "freshness": {
+  "status": "fresh",
+  "lastSuccessAt": "2026-11-23T10:21:58.308Z",
+  "lastVerifiedAt": "2026-11-23T10:21:58.308Z",
+  "ageHours": 16.4
+ },
+ "provenance": {
+  "sourceHost": "markazibraheem.co.uk",
+  "adapter": "html-selectors"
+ }
+}

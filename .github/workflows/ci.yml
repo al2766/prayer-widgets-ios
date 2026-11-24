@@ -1,0 +1,17 @@
+name: CI
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode version
+        run: xcodebuild -version
+      - name: Logic tests
+        run: swift test
+      - name: Make the Xcode project
+        run: brew install xcodegen && xcodegen generate
+      - name: Build app and widget (unsigned, simulator)
+        run: |
+          xcodebuild build -project PrayerWidgets.xcodeproj -scheme PrayerWidgets \
+            -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO | tail -40
