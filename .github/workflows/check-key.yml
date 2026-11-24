@@ -1,0 +1,18 @@
+name: Check key shape
+on: workflow_dispatch
+jobs:
+  shape:
+    runs-on: ubuntu-latest
+    env:
+      K: ${{ secrets.ASC_KEY_P8 }}
+    steps:
+      - name: Shape only (no key text is printed)
+        run: |
+          printf '%s\n' "$K" > k.txt
+          echo "lines: $(wc -l < k.txt)"
+          echo "chars: $(wc -c < k.txt)"
+          echo "first line starts with BEGIN header: $(head -1 k.txt | grep -c '^-----BEGIN PRIVATE KEY-----$')"
+          echo "last line is END header: $(tail -1 k.txt | grep -c '^-----END PRIVATE KEY-----$')"
+          echo "has carriage returns: $(grep -c $'\r' k.txt)"
+          echo "body line lengths: $(sed '1d;$d' k.txt | awk '{printf "%d ", length($0)}')"
+          rm -f k.txt
