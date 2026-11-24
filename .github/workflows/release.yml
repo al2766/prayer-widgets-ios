@@ -25,14 +25,12 @@ jobs:
           fi
           chmod 600 "$F"
           echo "key file lines: $(wc -l < "$F"), valid PEM: $(openssl pkey -in "$F" -noout >/dev/null 2>&1 && echo yes || echo no)"
-      - name: Archive (Apple creates the signing certificate and profiles)
+      - name: Archive without signing (a development profile would need a registered device; export signs for the App Store)
         run: |
           xcodebuild archive -project PrayerWidgets.xcodeproj -scheme PrayerWidgets \
             -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/app.xcarchive" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
-            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-            CURRENT_PROJECT_VERSION=${{ github.run_number }} | tail -60
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} | tail -40
       - name: Export the app file
         run: |
           cat > "$RUNNER_TEMP/export.plist" <<'PLIST'
