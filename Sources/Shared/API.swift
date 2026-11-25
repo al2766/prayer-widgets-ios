@@ -17,6 +17,19 @@ public enum API {
         return (try JSONDecoder().decode(T.self, from: data), data)
     }
 
+    /// Sends a "please add this mosque" request. The Studio only adds it to a list for the admin; nothing is fetched or added automatically.
+    public static func requestMosque(url: String) async throws {
+        var req = URLRequest(url: base.appendingPathComponent("api/requests"))
+        req.httpMethod = "POST"
+        req.timeoutInterval = 15
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONEncoder().encode(["url": url])
+        let resp: URLResponse
+        do { (_, resp) = try await URLSession.shared.data(for: req) } catch { throw Failure.offline }
+        guard let h = resp as? HTTPURLResponse else { throw Failure.offline }
+        guard (200..<300).contains(h.statusCode) else { throw Failure.http(h.statusCode) }
+    }
+
     public static func mosques() async throws -> [Mosque] {
         try await get("api/mosques", as: MosqueList.self).0.mosques
     }
@@ -30,7 +43,7 @@ public enum API {
 /// Keeps the last good answer so a failed fetch shows old real data with its age, never made-up times.
 public struct Cache {
     let defaults: UserDefaults
-    public init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+    public init(defaults: UserDefaults = Store.defaults) { self.defaults = defaults }
 
     public func saveTimes(_ data: Data, slug: String) { defaults.set(data, forKey: "times.\(slug)") }
     public func times(slug: String) -> PrayerResponse? {

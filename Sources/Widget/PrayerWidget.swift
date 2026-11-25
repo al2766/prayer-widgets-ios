@@ -8,19 +8,23 @@ import Shared
 struct MosqueEntity: AppEntity {
     static var typeDisplayRepresentation: TypeDisplayRepresentation = "Mosque"
     static var defaultQuery = MosqueQuery()
-    var id: String            // the mosque's slug
+    static let followDefaultId = "default"
+    var id: String            // the mosque's slug, or "default" to follow the app's default masjid
     var name: String
     var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "\(name)") }
+    static let followDefault = MosqueEntity(id: followDefaultId, name: "My default masjid")
 }
 
 struct MosqueQuery: EntityQuery {
     func entities(for identifiers: [String]) async throws -> [MosqueEntity] {
-        try await all().filter { identifiers.contains($0.id) }
+        let all = await mosques()
+        return identifiers.compactMap { id in id == MosqueEntity.followDefaultId ? MosqueEntity.followDefault : all.first { $0.id == id } }
     }
-    func suggestedEntities() async throws -> [MosqueEntity] { try await all() }
+    func suggestedEntities() async throws -> [MosqueEntity] { [MosqueEntity.followDefault] + (await mosques()) }
+    func defaultResult() async -> MosqueEntity? { MosqueEntity.followDefault }
 
     /// Network first, cached list when offline, so the picker is never empty after one good load.
-    private func all() async -> [MosqueEntity] {
+    private func mosques() async -> [MosqueEntity] {
         let cache = Cache()
         if let list = try? await API.mosques() { cache.saveMosques(list); return list.map { MosqueEntity(id: $0.slug, name: $0.name) } }
         return cache.mosques().map { MosqueEntity(id: $0.slug, name: $0.name) }
@@ -45,7 +49,7 @@ protocol MosqueChoosing {
 
 struct SelectMosqueIntent: WidgetConfigurationIntent, MosqueChoosing {
     static var title: LocalizedStringResource = "Choose mosque"
-    static var description = IntentDescription("Pick the mosque whose prayer times this widget shows.")
+    static var description = IntentDescription("Pick a mosque, or follow your default masjid from the app.")
     @Parameter(title: "Mosque") var mosque: MosqueEntity?
     var part: LockPart { .left }
 }
@@ -65,94 +69,70 @@ struct PrayerEntry: TimelineEntry {
     let day: PrayerResponse?    // nil = nothing real to show
     let note: String?           // plain-words problem or age note
     var part: LockPart = .left  // lock screen widgets only
+    var themeId: String = WidgetTheme.all[0].id
+    var layoutId: String = WidgetLayout.classic.rawValue
 }
 
 struct Provider<Intent: WidgetConfigurationIntent & MosqueChoosing>: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> PrayerEntry {
-        PrayerEntry(date: .now, mosqueName: "Your mosque", day: nil, note: nil)
+        PrayerEntry(date: Date(), mosqueName: "Your mosque", day: nil, note: nil)
     }
 
     func snapshot(for configuration: Intent, in context: Context) async -> PrayerEntry {
-        await load(configuration, at: .now).first ?? placeholder(in: context)
+        await load(configuration, at: Date()).first ?? placeholder(in: context)
     }
 
     func timeline(for configuration: Intent, in context: Context) async -> Timeline<PrayerEntry> {
-        let entries = await load(configuration, at: .now)
+        let entries = await load(configuration, at: Date())
         // Ask again in 3 hours, or sooner when no real times are available yet.
-        let refresh = Date.now.addingTimeInterval(entries.first?.day == nil ? 30 * 60 : 3 * 3600)
+        let refresh = Date().addingTimeInterval(entries.first?.day == nil ? 30 * 60 : 3 * 3600)
         return Timeline(entries: entries, policy: .after(refresh))
     }
 
     /// One entry now plus one at each later prayer today, so "next prayer" changes by itself without new network calls.
     private func load(_ config: Intent, at now: Date) async -> [PrayerEntry] {
         let part = config.part
-        guard let m = config.mosque else { return [PrayerEntry(date: now, mosqueName: nil, day: nil, note: "Edit the widget to choose a mosque", part: part)] }
+        let themeId = Store.themeId, layoutId = Store.layoutId
+        let chosen = config.mosque?.id
+        let followsDefault = chosen == nil || chosen == MosqueEntity.followDefaultId
+        guard let slug = followsDefault ? Store.defaultSlug : chosen else {
+            return [PrayerEntry(date: now, mosqueName: nil, day: nil, note: "Open the app and choose a default masjid", part: part, themeId: themeId, layoutId: layoutId)]
+        }
         let cache = Cache()
         var day: PrayerResponse?
         var note: String?
         do {
-            let (d, raw) = try await API.prayerTimes(slug: m.id)
+            let (d, raw) = try await API.prayerTimes(slug: slug)
             day = d
-            cache.saveTimes(raw, slug: m.id)
+            cache.saveTimes(raw, slug: slug)
         } catch {
-            day = cache.times(slug: m.id)          // last real answer, never invented
+            day = cache.times(slug: slug)          // last real answer, never invented
             note = day == nil ? "Times not available yet" : nil
         }
-        guard let day else { return [PrayerEntry(date: now, mosqueName: m.name, day: nil, note: note, part: part)] }
+        guard let day else { return [PrayerEntry(date: now, mosqueName: config.mosque?.name, day: nil, note: note, part: part, themeId: themeId, layoutId: layoutId)] }
+        if slug == Store.defaultSlug { await Planner.reschedule(for: day) }   // best effort: keeps today's alerts current
         let stale = TimeLogic.staleNote(day.freshness)
-        let isToday = day.date == TimeLogic.dateString(now, zoneId: day.mosque.timezone)
+        let isToday = TimeLogic.isToday(day, now: now)
         let tail = isToday ? TimeLogic.schedule(day).map(\.at).filter { $0 > now } : []
         // Yesterday's times are shown without a label (the server adds the new day at 03:30 UTC); older than that gets a plain note.
         let yesterday = TimeLogic.dateString(now.addingTimeInterval(-86_400), zoneId: day.mosque.timezone)
         let dateNote: String? = (isToday || day.date == yesterday) ? stale : "Times are from \(day.date)"
-        return ([now] + tail).map { PrayerEntry(date: $0, mosqueName: m.name, day: day, note: dateNote, part: part) }
+        return ([now] + tail).map { PrayerEntry(date: $0, mosqueName: day.mosque.name, day: day, note: dateNote, part: part, themeId: themeId, layoutId: layoutId) }
     }
 }
 
 // MARK: - Views
 
-private extension Prayer {
-    /// Short names so every column fits.
-    var short: String {
-        switch self {
-        case .maghrib: return "Magh"
-        case .sunrise: return "Rise"
-        default: return title
-        }
-    }
-}
-
 struct PrayerWidgetView: View {
+    @Environment(\.widgetFamily) private var family
     let entry: PrayerEntry
 
     var body: some View {
-        Group {
-            if let day = entry.day { content(day) }
-            else { VStack(spacing: 4) {
-                Text(entry.mosqueName ?? "Prayer Widgets").font(.headline)
-                Text(entry.note ?? "Choose a mosque").font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
-            } }
-        }
-        .containerBackground(.fill.tertiary, for: .widget)
-    }
-
-    /// Name on the left, start time and jama'ah time side by side on the far right.
-    @ViewBuilder private func content(_ day: PrayerResponse) -> some View {
-        let next = TimeLogic.next(day, after: entry.date)
-        VStack(alignment: .leading, spacing: 4) {
-            Text(day.mosque.name).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-            ForEach(TimeLogic.rows(day).filter { $0.prayer != .sunrise }, id: \.prayer) { row in
-                let isNext = row.prayer == next?.row.prayer
-                HStack(spacing: 8) {
-                    Text(row.prayer.short)
-                    Spacer(minLength: 4)
-                    Text(row.begins ?? "–").frame(width: 46, alignment: .trailing)
-                    Text(row.jamaah ?? "–").frame(width: 46, alignment: .trailing)
-                }
-                .font(.footnote).monospacedDigit().fontWeight(isNext ? .bold : .regular)
-            }
-            if let note = entry.note { Text(note).font(.caption2).foregroundStyle(.orange).lineLimit(1) }
-        }
+        let theme = WidgetTheme.byId(entry.themeId)
+        let size: WidgetSize = family == .systemSmall ? .small : .medium
+        WidgetContent(day: entry.day, mosqueName: entry.mosqueName, note: entry.note, theme: theme,
+                      layout: WidgetLayout.byId(entry.layoutId).resolved(for: size), size: size, now: entry.date)
+            .containerBackground(Color(hex: theme.bg), for: .widget)
     }
 }
 

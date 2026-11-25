@@ -15,7 +15,11 @@ targets:
   PrayerWidgets:
     type: application
     platform: iOS
-    sources: [Sources/App]
+    sources: [Sources/App, Sources/WidgetViews]
+    entitlements:
+      path: Sources/App/App.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.zorell.prayerwidgets]
     dependencies:
       - package: Shared
       - target: PrayerWidgetsWidget
@@ -23,7 +27,8 @@ targets:
       path: Sources/App/Info.plist
       properties:
         CFBundleDisplayName: Prayer Widgets
-        UILaunchScreen: {}
+        UILaunchScreen: { UIColorName: LaunchNavy }
+        NSLocationWhenInUseUsageDescription: Used only to point the compass towards the Kaaba. Your location stays on your phone.
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
     settings:
@@ -34,7 +39,11 @@ targets:
   PrayerWidgetsWidget:
     type: app-extension
     platform: iOS
-    sources: [Sources/Widget]
+    sources: [Sources/Widget, Sources/WidgetViews]
+    entitlements:
+      path: Sources/Widget/Widget.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.zorell.prayerwidgets]
     dependencies:
       - package: Shared
     info:

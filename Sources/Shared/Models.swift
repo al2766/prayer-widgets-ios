@@ -5,9 +5,10 @@ public struct Mosque: Codable, Hashable, Identifiable {
     public let slug: String
     public let name: String
     public let timezone: String
+    public let city: String?           // set by the admin; nil shows under "Other"
     public var id: String { slug }
-    public init(slug: String, name: String, timezone: String) {
-        self.slug = slug; self.name = name; self.timezone = timezone
+    public init(slug: String, name: String, timezone: String, city: String? = nil) {
+        self.slug = slug; self.name = name; self.timezone = timezone; self.city = city
     }
 }
 
@@ -31,6 +32,11 @@ public struct Times: Codable, Equatable {
 public struct Freshness: Codable, Equatable {
     public let status: String          // fresh | stale | unknown
     public let ageHours: Double?
+    public let lastSuccessAt: String?  // ISO instant of the last validated extraction
+    public let lastVerifiedAt: String? // ISO instant of the last successful check
+    public init(status: String, ageHours: Double?, lastSuccessAt: String? = nil, lastVerifiedAt: String? = nil) {
+        self.status = status; self.ageHours = ageHours; self.lastSuccessAt = lastSuccessAt; self.lastVerifiedAt = lastVerifiedAt
+    }
 }
 
 /// GET /api/mosques/<slug>/prayer-times

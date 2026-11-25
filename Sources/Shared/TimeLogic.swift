@@ -80,4 +80,51 @@ public enum TimeLogic {
         let c = cal.dateComponents([.year, .month, .day], from: now)
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
+
+    // MARK: Display helpers
+
+    public static func parseISO(_ s: String) -> Date? {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f.date(from: s) { return d }
+        f.formatOptions = [.withInternetDateTime]
+        return f.date(from: s)
+    }
+
+    /// "Today, 14:58" from the server's real last-check time, in the mosque's zone. nil when the server gave no time.
+    public static func updatedText(_ f: Freshness, zoneId: String, now: Date) -> String? {
+        guard let iso = f.lastVerifiedAt ?? f.lastSuccessAt, let d = parseISO(iso) else { return nil }
+        let zone = TimeZone(identifier: zoneId) ?? .current
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = zone
+        let tf = DateFormatter()
+        tf.locale = Locale(identifier: "en_GB"); tf.timeZone = zone; tf.dateFormat = "HH:mm"
+        let time = tf.string(from: d)
+        if cal.isDate(d, inSameDayAs: now) { return "Today, \(time)" }
+        if let y = cal.date(byAdding: .day, value: -1, to: now), cal.isDate(d, inSameDayAs: y) { return "Yesterday, \(time)" }
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_GB"); df.timeZone = zone; df.dateFormat = "d MMM"
+        return "\(df.string(from: d)), \(time)"
+    }
+
+    /// "in 2h 14m", "in 14m", or "in under a minute".
+    public static func countdown(to target: Date, from now: Date) -> String {
+        let secs = target.timeIntervalSince(now)
+        if secs < 60 { return "in under a minute" }
+        let m = Int(secs / 60)
+        return m >= 60 ? "in \(m / 60)h \(m % 60)m" : "in \(m)m"
+    }
+
+    /// "Tue, 25 Nov" in the mosque's zone.
+    public static func dayHeading(_ now: Date, zoneId: String) -> String {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_GB"); df.timeZone = TimeZone(identifier: zoneId) ?? .current
+        df.dateFormat = "EEE, d MMM"
+        return df.string(from: now)
+    }
+
+    /// True when the data is for today in the mosque's zone.
+    public static func isToday(_ r: PrayerResponse, now: Date) -> Bool {
+        r.date == dateString(now, zoneId: r.mosque.timezone)
+    }
 }
