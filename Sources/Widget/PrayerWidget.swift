@@ -27,10 +27,34 @@ struct MosqueQuery: EntityQuery {
     }
 }
 
-struct SelectMosqueIntent: WidgetConfigurationIntent {
+/// Which half of the day a lock screen widget shows.
+enum LockPart: String, AppEnum {
+    case left, right
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Half"
+    static var caseDisplayRepresentations: [LockPart: DisplayRepresentation] = [
+        .left: "Left: Fajr, Sunrise, Dhuhr",
+        .right: "Right: Asr, Maghrib, Isha",
+    ]
+}
+
+/// What the timeline needs from any widget's settings.
+protocol MosqueChoosing {
+    var mosque: MosqueEntity? { get }
+    var part: LockPart { get }
+}
+
+struct SelectMosqueIntent: WidgetConfigurationIntent, MosqueChoosing {
     static var title: LocalizedStringResource = "Choose mosque"
     static var description = IntentDescription("Pick the mosque whose prayer times this widget shows.")
     @Parameter(title: "Mosque") var mosque: MosqueEntity?
+    var part: LockPart { .left }
+}
+
+struct SelectLockIntent: WidgetConfigurationIntent, MosqueChoosing {
+    static var title: LocalizedStringResource = "Choose mosque and half"
+    static var description = IntentDescription("Pick the mosque and which half of the day this widget shows. Add two widgets, one left and one right.")
+    @Parameter(title: "Mosque") var mosque: MosqueEntity?
+    @Parameter(title: "Half", default: .left) var part: LockPart
 }
 
 // MARK: - Timeline
@@ -40,18 +64,19 @@ struct PrayerEntry: TimelineEntry {
     let mosqueName: String?     // nil = no mosque chosen yet
     let day: PrayerResponse?    // nil = nothing real to show
     let note: String?           // plain-words problem or age note
+    var part: LockPart = .left  // lock screen widgets only
 }
 
-struct Provider: AppIntentTimelineProvider {
+struct Provider<Intent: WidgetConfigurationIntent & MosqueChoosing>: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> PrayerEntry {
         PrayerEntry(date: .now, mosqueName: "Your mosque", day: nil, note: nil)
     }
 
-    func snapshot(for configuration: SelectMosqueIntent, in context: Context) async -> PrayerEntry {
+    func snapshot(for configuration: Intent, in context: Context) async -> PrayerEntry {
         await load(configuration, at: .now).first ?? placeholder(in: context)
     }
 
-    func timeline(for configuration: SelectMosqueIntent, in context: Context) async -> Timeline<PrayerEntry> {
+    func timeline(for configuration: Intent, in context: Context) async -> Timeline<PrayerEntry> {
         let entries = await load(configuration, at: .now)
         // Ask again in 3 hours, or sooner when no real times are available yet.
         let refresh = Date.now.addingTimeInterval(entries.first?.day == nil ? 30 * 60 : 3 * 3600)
@@ -59,8 +84,9 @@ struct Provider: AppIntentTimelineProvider {
     }
 
     /// One entry now plus one at each later prayer today, so "next prayer" changes by itself without new network calls.
-    private func load(_ config: SelectMosqueIntent, at now: Date) async -> [PrayerEntry] {
-        guard let m = config.mosque else { return [PrayerEntry(date: now, mosqueName: nil, day: nil, note: "Edit the widget to choose a mosque")] }
+    private func load(_ config: Intent, at now: Date) async -> [PrayerEntry] {
+        let part = config.part
+        guard let m = config.mosque else { return [PrayerEntry(date: now, mosqueName: nil, day: nil, note: "Edit the widget to choose a mosque", part: part)] }
         let cache = Cache()
         var day: PrayerResponse?
         var note: String?
@@ -72,18 +98,31 @@ struct Provider: AppIntentTimelineProvider {
             day = cache.times(slug: m.id)          // last real answer, never invented
             note = day == nil ? "Times not available yet" : nil
         }
-        guard let day else { return [PrayerEntry(date: now, mosqueName: m.name, day: nil, note: note)] }
+        guard let day else { return [PrayerEntry(date: now, mosqueName: m.name, day: nil, note: note, part: part)] }
         let stale = TimeLogic.staleNote(day.freshness)
         let isToday = day.date == TimeLogic.dateString(now, zoneId: day.mosque.timezone)
         let tail = isToday ? TimeLogic.schedule(day).map(\.at).filter { $0 > now } : []
-        return ([now] + tail).map { PrayerEntry(date: $0, mosqueName: m.name, day: day, note: isToday ? stale : "Showing \(day.date)") }
+        // Yesterday's times are shown without a label (the server adds the new day at 03:30 UTC); older than that gets a plain note.
+        let yesterday = TimeLogic.dateString(now.addingTimeInterval(-86_400), zoneId: day.mosque.timezone)
+        let dateNote: String? = (isToday || day.date == yesterday) ? stale : "Times are from \(day.date)"
+        return ([now] + tail).map { PrayerEntry(date: $0, mosqueName: m.name, day: day, note: dateNote, part: part) }
     }
 }
 
 // MARK: - Views
 
+private extension Prayer {
+    /// Short names so every column fits.
+    var short: String {
+        switch self {
+        case .maghrib: return "Magh"
+        case .sunrise: return "Rise"
+        default: return title
+        }
+    }
+}
+
 struct PrayerWidgetView: View {
-    @Environment(\.widgetFamily) private var family
     let entry: PrayerEntry
 
     var body: some View {
@@ -97,32 +136,63 @@ struct PrayerWidgetView: View {
         .containerBackground(.fill.tertiary, for: .widget)
     }
 
+    /// Name on the left, start time and jama'ah time side by side on the far right.
     @ViewBuilder private func content(_ day: PrayerResponse) -> some View {
         let next = TimeLogic.next(day, after: entry.date)
         VStack(alignment: .leading, spacing: 4) {
             Text(day.mosque.name).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-            if let n = next, family == .systemSmall {
-                Text(n.row.prayer.title).font(.title3.bold())
-                Text(n.row.main ?? "").font(.largeTitle.bold())
-            } else {
-                ForEach(TimeLogic.rows(day).filter { $0.prayer != .sunrise }, id: \.prayer) { row in
-                    HStack {
-                        Text(row.prayer.title).fontWeight(row.prayer == next?.row.prayer ? .bold : .regular)
-                        Spacer()
-                        Text(row.main ?? "").monospacedDigit().fontWeight(row.prayer == next?.row.prayer ? .bold : .regular)
-                    }.font(.footnote)
+            ForEach(TimeLogic.rows(day).filter { $0.prayer != .sunrise }, id: \.prayer) { row in
+                let isNext = row.prayer == next?.row.prayer
+                HStack(spacing: 8) {
+                    Text(row.prayer.short)
+                    Spacer(minLength: 4)
+                    Text(row.begins ?? "–").frame(width: 46, alignment: .trailing)
+                    Text(row.jamaah ?? "–").frame(width: 46, alignment: .trailing)
                 }
+                .font(.footnote).monospacedDigit().fontWeight(isNext ? .bold : .regular)
             }
-            if next == nil && family == .systemSmall { Text("Done for today").font(.headline) }
             if let note = entry.note { Text(note).font(.caption2).foregroundStyle(.orange).lineLimit(1) }
         }
+    }
+}
+
+/// Lock screen: names on top, start times in the middle row, jama'ah times underneath.
+struct LockWidgetView: View {
+    let entry: PrayerEntry
+
+    var body: some View {
+        Group {
+            if let day = entry.day { grid(day) }
+            else { Text(entry.note ?? "Edit widget: choose a mosque").font(.caption2).multilineTextAlignment(.center) }
+        }
+        .containerBackground(.clear, for: .widget)
+    }
+
+    @ViewBuilder private func grid(_ day: PrayerResponse) -> some View {
+        let prayers: [Prayer] = entry.part == .left ? [.fajr, .sunrise, .dhuhr] : [.asr, .maghrib, .isha]
+        let rows = Dictionary(uniqueKeysWithValues: TimeLogic.rows(day).map { ($0.prayer, $0) })
+        Grid(alignment: .trailing, horizontalSpacing: 6, verticalSpacing: 1) {
+            GridRow {
+                Text("")
+                ForEach(prayers, id: \.self) { Text($0.short) }
+            }
+            GridRow {
+                Text("⏰")
+                ForEach(prayers, id: \.self) { Text(rows[$0]?.begins ?? "–") }
+            }
+            GridRow {
+                Text("🕌")
+                ForEach(prayers, id: \.self) { p in Text(rows[p]?.jamaah ?? (p == .sunrise ? rows[p]?.begins : nil) ?? "–") }
+            }
+        }
+        .font(.system(size: 11)).monospacedDigit().minimumScaleFactor(0.7).lineLimit(1)
     }
 }
 
 struct PrayerWidget: Widget {
     let kind = "PrayerWidget"
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: kind, intent: SelectMosqueIntent.self, provider: Provider()) { entry in
+        AppIntentConfiguration(kind: kind, intent: SelectMosqueIntent.self, provider: Provider<SelectMosqueIntent>()) { entry in
             PrayerWidgetView(entry: entry)
         }
         .configurationDisplayName("Prayer times")
@@ -131,7 +201,22 @@ struct PrayerWidget: Widget {
     }
 }
 
+struct PrayerLockWidget: Widget {
+    let kind = "PrayerLockWidget"
+    var body: some WidgetConfiguration {
+        AppIntentConfiguration(kind: kind, intent: SelectLockIntent.self, provider: Provider<SelectLockIntent>()) { entry in
+            LockWidgetView(entry: entry)
+        }
+        .configurationDisplayName("Prayer times (lock screen)")
+        .description("Start and jama'ah times. Add two: one left half, one right half.")
+        .supportedFamilies([.accessoryRectangular])
+    }
+}
+
 @main
 struct PrayerWidgetBundle: WidgetBundle {
-    var body: some Widget { PrayerWidget() }
+    var body: some Widget {
+        PrayerWidget()
+        PrayerLockWidget()
+    }
 }
