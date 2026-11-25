@@ -114,9 +114,9 @@ struct Provider<Intent: WidgetConfigurationIntent & MosqueChoosing>: AppIntentTi
         let stale = TimeLogic.staleNote(day.freshness)
         let isToday = TimeLogic.isToday(day, now: now)
         let tail = isToday ? TimeLogic.schedule(day).map(\.at).filter { $0 > now } : []
-        // Yesterday's times are shown without a label (the server adds the new day at 03:30 UTC); older than that gets a plain note.
+        // Old times get a tiny tag: "Yesterday" for yesterday's day (the server adds the new day just after midnight), a date for anything older.
         let yesterday = TimeLogic.dateString(now.addingTimeInterval(-86_400), zoneId: day.mosque.timezone)
-        let dateNote: String? = (isToday || day.date == yesterday) ? stale : "Times are from \(day.date)"
+        let dateNote: String? = isToday ? stale : (day.date == yesterday ? "Yesterday" : "Times are from \(day.date)")
         return ([now] + tail).map { PrayerEntry(date: $0, mosqueName: day.mosque.name, day: day, note: dateNote, part: part, themeId: themeId, layoutId: layoutId) }
     }
 }
