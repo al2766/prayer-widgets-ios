@@ -43,7 +43,7 @@ struct HomeView: View {
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showPicker) { DefaultPickerSheet() }
             .sheet(isPresented: $showMaps) { if let m = app.defaultMosque { MapsSheet(mosque: m) } }
-            .navigationDestination(isPresented: $showBell) { NotificationsView() }
+            .sheet(isPresented: $showBell) { NotificationsSheet() }
         }
     }
 
@@ -83,7 +83,7 @@ struct NextPrayerCard: View {
         ZStack(alignment: .bottomTrailing) {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(LinearGradient(colors: [Palette.tealMid, Palette.tealDeep], startPoint: .topLeading, endPoint: .bottomTrailing))
-            SunriseArt().frame(width: 230, height: 104)
+            SunriseArt().frame(width: 200, height: 78).offset(y: 6)
             VStack(alignment: .leading, spacing: 8) {
                 Text("Next Prayer").font(.system(size: 19, weight: .regular)).foregroundStyle(.white.opacity(0.9))
                 HStack(alignment: .top, spacing: 14) {
@@ -100,9 +100,9 @@ struct NextPrayerCard: View {
                 }
                 .foregroundStyle(.white)
             }
-            .padding(.horizontal, 24).padding(.vertical, 22).frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 24).padding(.top, 16).padding(.bottom, 22).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .frame(height: 196)
+        .frame(height: 190)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .accessibilityElement(children: .combine)
     }

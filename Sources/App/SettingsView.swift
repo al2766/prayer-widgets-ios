@@ -33,7 +33,28 @@ struct SettingsView: View {
     }
 }
 
+/// The bell on Home: the same toggles, in a slide-up sheet.
+struct NotificationsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Notifications").font(.system(size: 24, weight: .bold))
+                Spacer()
+                Button { dismiss() } label: { Image(systemName: "xmark").font(.system(size: 17)).foregroundStyle(Palette.text).frame(width: 40, height: 40) }
+                    .accessibilityLabel("Close")
+            }
+            .padding(.horizontal, 22).padding(.top, 26)
+            NotificationsView(clearTabBar: false)
+        }
+        .background(Palette.bg.ignoresSafeArea())
+        .presentationDetents([.height(470), .large])
+        .presentationDragIndicator(.visible)
+    }
+}
+
 struct NotificationsView: View {
+    var clearTabBar = true
     @EnvironmentObject var app: AppState
     @State private var prayers = Store.notifyPrayers
     @State private var sunrise = Store.notifySunrise
@@ -66,7 +87,8 @@ struct NotificationsView: View {
                 }
             }
         }
-        .scrollContentBackground(.hidden).tabBarClearance()
+        .scrollContentBackground(.hidden)
+        .contentMargins(.bottom, clearTabBar ? 112 : 0, for: .scrollContent)
         .background(Palette.bg.ignoresSafeArea())
         .navigationTitle("Notifications").navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
