@@ -128,6 +128,11 @@ struct DomeGlyph: View {
     }
 }
 
+extension View {
+    /// Lets the last item of a scrolling screen rise above the floating tab bar.
+    func tabBarClearance() -> some View { contentMargins(.bottom, 112, for: .scrollContent) }
+}
+
 /// Keeps the edge swipe-back working on screens that hide the system navigation bar.
 extension UINavigationController: UIGestureRecognizerDelegate {
     open override func viewDidLoad() {

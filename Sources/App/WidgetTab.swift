@@ -51,6 +51,7 @@ private struct CustomisePane: View {
             }
             .padding(.horizontal, 20).padding(.top, 14).padding(.bottom, 24)
         }
+        .tabBarClearance()
         .sheet(item: $sheet) { OptionSheet(kind: $0) }
     }
 
@@ -134,7 +135,7 @@ private struct OptionSheet: View {
             HStack {
                 arrow("chevron.left") { go(-1) }
                 TabView(selection: $index) {
-                    ForEach(0..<count, id: \.self) { i in preview(i).tag(i).frame(maxWidth: .infinity) }
+                    ForEach(0..<count, id: \.self) { i in preview(i).padding(.horizontal, 26).tag(i).frame(maxWidth: .infinity) }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .frame(height: 178)
@@ -216,6 +217,7 @@ private struct HowToPane: View {
             }
             .padding(.horizontal, 20).padding(.top, 6).padding(.bottom, 24)
         }
+        .tabBarClearance()
         .onAppear {
             guard !reduceMotion else { return }
             withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: false)) { pulse = true }

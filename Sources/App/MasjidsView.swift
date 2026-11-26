@@ -75,6 +75,7 @@ struct MasjidsView: View {
                     .padding(.horizontal, 20).padding(.bottom, 24)
                 }
                 .refreshable { await app.loadMosques() }
+                .tabBarClearance()
             }
             .background(Palette.bg.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
@@ -91,20 +92,20 @@ struct MasjidsView: View {
         VStack(spacing: 14) {
             HStack(spacing: 12) {
                 HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass").font(.system(size: 19)).foregroundStyle(Palette.muted)
+                    Image(systemName: "magnifyingglass").font(.system(size: 17)).foregroundStyle(Palette.muted)
                     TextField("Search masjids...", text: $query).submitLabel(.search).autocorrectionDisabled()
                     if !query.isEmpty { Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Palette.muted) } }
                 }
-                .font(.system(size: 18))
-                .padding(.horizontal, 16).frame(height: 56)
+                .font(.system(size: 16))
+                .padding(.horizontal, 14).frame(height: 50)
                 .background(Capsule().fill(Palette.surface))
 
                 Button { Haptics.tap(); showAdd = true } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "plus.circle").font(.system(size: 20))
-                        Text("Add new").font(.system(size: 18, weight: .medium))
+                    HStack(spacing: 5) {
+                        Image(systemName: "plus.circle").font(.system(size: 17))
+                        Text("Add new").font(.system(size: 15, weight: .medium))
                     }
-                    .foregroundStyle(Palette.teal).padding(.horizontal, 18).frame(height: 56)
+                    .foregroundStyle(Palette.teal).padding(.horizontal, 13).frame(height: 50)
                     .background(Capsule().fill(Palette.tealSoft))
                 }
             }

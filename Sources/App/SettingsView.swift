@@ -26,7 +26,7 @@ struct SettingsView: View {
             }
             .foregroundStyle(Palette.text)
             .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
+            .scrollContentBackground(.hidden).tabBarClearance()
             .background(Palette.bg.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
         }
@@ -66,7 +66,7 @@ struct NotificationsView: View {
                 }
             }
         }
-        .scrollContentBackground(.hidden)
+        .scrollContentBackground(.hidden).tabBarClearance()
         .background(Palette.bg.ignoresSafeArea())
         .navigationTitle("Notifications").navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
@@ -111,7 +111,7 @@ struct FAQView: View {
                 Text(a).foregroundStyle(Palette.muted).padding(.vertical, 4)
             } label: { Text(q).font(.system(size: 16, weight: .semibold)) }
         }
-        .scrollContentBackground(.hidden)
+        .scrollContentBackground(.hidden).tabBarClearance()
         .background(Palette.bg.ignoresSafeArea())
         .navigationTitle("FAQ").navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)

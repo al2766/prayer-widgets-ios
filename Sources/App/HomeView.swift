@@ -38,6 +38,7 @@ struct HomeView: View {
                 .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 24)
             }
             .refreshable { await app.refreshDefault() }
+            .tabBarClearance()
             .background(Palette.bg.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showPicker) { DefaultPickerSheet() }
