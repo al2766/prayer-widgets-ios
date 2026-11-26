@@ -56,7 +56,7 @@ private struct CustomisePane: View {
     }
 
     @ViewBuilder private func preview(_ size: WidgetSize) -> some View {
-        let card = WidgetPreviewCard(day: app.defaultDay, theme: app.theme(size), layout: app.layout(size).resolved(for: size), size: size, now: Date())
+        let card = WidgetPreviewCard(day: app.activeDay(), theme: app.theme(size), layout: app.layout(size).resolved(for: size), size: size, now: Date())
         if size == .medium { FitPreview(width: 338, height: 158) { card } } else { card }
     }
 
@@ -166,9 +166,9 @@ private struct OptionSheet: View {
     @ViewBuilder private func preview(_ i: Int) -> some View {
         FitPreview(width: kind.size == .small ? 158 : 338, height: 158) {
             if kind.theme {
-                WidgetPreviewCard(day: app.defaultDay, theme: themes[i], layout: app.layout(kind.size).resolved(for: kind.size), size: kind.size, now: Date())
+                WidgetPreviewCard(day: app.activeDay(), theme: themes[i], layout: app.layout(kind.size).resolved(for: kind.size), size: kind.size, now: Date())
             } else {
-                WidgetPreviewCard(day: app.defaultDay, theme: app.theme(kind.size), layout: layouts[i], size: kind.size, now: Date())
+                WidgetPreviewCard(day: app.activeDay(), theme: app.theme(kind.size), layout: layouts[i], size: kind.size, now: Date())
             }
         }
     }

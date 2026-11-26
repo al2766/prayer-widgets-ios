@@ -11,6 +11,9 @@ struct PrayerWidgetsApp: App {
         WindowGroup {
             ZStack {
                 RootView()
+                if !app.onboarded {
+                    OnboardingView().transition(.opacity).zIndex(0.5)
+                }
                 if showLaunch {
                     LaunchView(ready: app.bootstrapped) { withAnimation(.easeInOut(duration: 0.45)) { showLaunch = false } }
                         .transition(.opacity)

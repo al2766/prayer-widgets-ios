@@ -46,7 +46,7 @@ struct WidgetContent: View {
     private var empty: some View {
         VStack(spacing: 4) {
             Text(mosqueName ?? "Prayer Widgets").font(.headline).lineLimit(2).minimumScaleFactor(0.7)
-            Text(note ?? "Open the app and choose your default masjid").font(.caption).foregroundStyle(secondary).multilineTextAlignment(.center)
+            Text(note ?? "Open the app to set up your prayer times").font(.caption).foregroundStyle(secondary).multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -87,6 +87,7 @@ struct WidgetContent: View {
     /// Name on the left, start time and jama'ah time side by side. The medium widget adds column headings and the dome picture.
     private func classic(_ day: PrayerResponse, next: (row: Row, at: Date)?) -> some View {
         let w: CGFloat = small ? 36 : 52
+        let jam = TimeLogic.rows(day).contains { $0.jamaah != nil }     // locally calculated times have no jama'ah
         let table = VStack(alignment: .leading, spacing: small ? 3 : 4) {
             header(day, big: !small)
             if !small {
@@ -94,7 +95,7 @@ struct WidgetContent: View {
                     Text("Prayer")
                     Spacer(minLength: 2)
                     Text("Start").frame(width: w, alignment: .trailing)
-                    Text("Jama'ah").frame(width: w + 6, alignment: .trailing)
+                    if jam { Text("Jama'ah").frame(width: w + 6, alignment: .trailing) }
                 }
                 .font(.system(size: 10, weight: .medium)).foregroundStyle(secondary).padding(.horizontal, 6)
             }
@@ -104,7 +105,7 @@ struct WidgetContent: View {
                     Text(row.prayer.title)
                     Spacer(minLength: 2)
                     Text(row.begins ?? "–").frame(width: w, alignment: .trailing)
-                    Text(row.jamaah ?? "–").frame(width: small ? w : w + 6, alignment: .trailing)
+                    if jam { Text(row.jamaah ?? "–").frame(width: small ? w : w + 6, alignment: .trailing) }
                 }
                 .font(.system(size: small ? 11 : 13, weight: on ? .bold : .semibold)).monospacedDigit()
                 .lineLimit(1).minimumScaleFactor(0.8)
@@ -181,7 +182,9 @@ struct WidgetContent: View {
                     VStack(spacing: 4) {
                         Text(row.prayer.short).font(.system(size: 12, weight: .bold))
                         Text(row.begins ?? "–").font(.system(size: 13, weight: .semibold)).monospacedDigit()
-                        Text(row.jamaah ?? "–").font(.system(size: 13)).monospacedDigit().foregroundStyle(on ? Color(hex: theme.highlightText) : secondary)
+                        if TimeLogic.rows(day).contains(where: { $0.jamaah != nil }) {
+                            Text(row.jamaah ?? "–").font(.system(size: 13)).monospacedDigit().foregroundStyle(on ? Color(hex: theme.highlightText) : secondary)
+                        }
                     }
                     .lineLimit(1).minimumScaleFactor(0.7)
                     .frame(maxWidth: .infinity)
@@ -260,7 +263,7 @@ struct WidgetPreviewCard: View {
 
     var body: some View {
         let l = layout.resolved(for: size)
-        WidgetContent(day: day, mosqueName: nil, note: day == nil ? "Pick a default masjid to preview" : nil, theme: theme, layout: l, size: size, now: now)
+        WidgetContent(day: day, mosqueName: nil, note: day == nil ? "Set up your prayer times to preview" : nil, theme: theme, layout: l, size: size, now: now)
             .padding(16)
             .frame(width: size == .small ? 158 : 338, height: 158)
             .background(Color(hex: theme.bg))

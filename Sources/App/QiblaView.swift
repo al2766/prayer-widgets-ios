@@ -51,8 +51,9 @@ final class CompassModel: NSObject, ObservableObject, CLLocationManagerDelegate 
 }
 
 struct QiblaView: View {
+    @EnvironmentObject var app: AppState
     @StateObject private var model = CompassModel()
-    @State private var place: Place? = Store.place
+    @State private var place: Place? = Store.qiblaUsesDevice ? nil : Store.place
     @State private var deviceName: String?
     @State private var aligned = false
     @State private var showChooser = false
@@ -108,10 +109,12 @@ struct QiblaView: View {
             withAnimation(.easeInOut(duration: 0.25)) { aligned = on }
         }
         .onChange(of: model.coordinate?.latitude) { _, _ in nameDevicePlace() }
+        .onChange(of: app.place) { _, p in if !Store.qiblaUsesDevice { place = p } }
         .sheet(isPresented: $showChooser) {
             ChooseLocationSheet(model: model, current: place) { chosen in
                 place = chosen
-                Store.place = chosen
+                Store.qiblaUsesDevice = chosen == nil          // the saved city also drives local prayer times, so it is never erased here
+                if let chosen { app.setPlace(chosen) }
                 if chosen == nil { nameDevicePlace() }
             }
         }

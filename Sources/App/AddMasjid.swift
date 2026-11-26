@@ -8,6 +8,9 @@ struct AddMasjidSheet: View {
 
     enum Route: Hashable { case manual, received, requests, detail(Mosque) }
 
+    /// Opens straight on the "Add Manually" form (used by onboarding's "Request my masjid").
+    var startManual = false
+
     @State private var query = ""
     @State private var city = "All"
     @State private var path = NavigationPath()
@@ -81,6 +84,7 @@ struct AddMasjidSheet: View {
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+        .onAppear { if startManual && path.isEmpty { path.append(Route.manual) } }
     }
 
     private func chip(_ c: String) -> some View {

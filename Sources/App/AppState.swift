@@ -9,6 +9,10 @@ final class AppState: ObservableObject {
     @Published var mosquesMessage: String?
     @Published var loadingMosques = false
     @Published var defaultSlug: String? = Store.defaultSlug
+    @Published var usingMasjid = Store.usingMasjid          // false = locally calculated times
+    @Published var place: Place? = Store.place              // the city or detected place used for local times and Qibla
+    @Published var hanafiAsr = Store.hanafiAsr
+    @Published var onboarded = Store.onboarded
     @Published var days: [String: PrayerResponse] = [:]
     @Published var dayNotes: [String: String] = [:]
     @Published var themeIds: [WidgetSize: String] = Dictionary(uniqueKeysWithValues: WidgetSize.allCases.map { ($0, Store.themeId($0)) })
@@ -24,6 +28,17 @@ final class AppState: ObservableObject {
 
     var defaultMosque: Mosque? { mosques.first { $0.slug == defaultSlug } }
     var defaultDay: PrayerResponse? { defaultSlug.flatMap { days[$0] } }
+    /// What Home and the widgets show right now: the default masjid's timetable, or today's calculated local times.
+    func activeDay(at now: Date = Date()) -> PrayerResponse? {
+        if usingMasjid { return defaultDay }
+        guard let place else { return nil }
+        return LocalTimes.day(place: place, now: now, hanafiAsr: hanafiAsr)
+    }
+    /// Plain words for the setup card and Settings.
+    var prayerTimesSummary: String? {
+        if usingMasjid { return defaultMosque?.name ?? "My masjid" }
+        return place == nil ? nil : "Local prayer times"
+    }
     func theme(_ size: WidgetSize) -> WidgetTheme { WidgetTheme.byId(themeIds[size] ?? WidgetTheme.all[0].id) }
     func layout(_ size: WidgetSize) -> WidgetLayout { WidgetLayout.byId(layoutIds[size] ?? WidgetLayout.classic.rawValue) }
 
@@ -51,7 +66,10 @@ final class AppState: ObservableObject {
     }
 
     func refreshDefault() async {
-        guard let slug = defaultSlug else { return }
+        guard usingMasjid, let slug = defaultSlug else {
+            await Planner.reschedule(for: activeDay())
+            return
+        }
         await loadDay(slug)
         await Planner.reschedule(for: days[slug])
     }
@@ -77,13 +95,61 @@ final class AppState: ObservableObject {
 
     func setDefault(_ m: Mosque) async {
         Store.defaultSlug = m.slug
+        Store.source = "masjid"
         defaultSlug = m.slug
+        usingMasjid = true
         Haptics.success()
         showToast("\(m.name) is now your default")
         WidgetCenter.shared.reloadAllTimelines()
         await loadDay(m.slug)
         await Planner.reschedule(for: days[m.slug])
     }
+
+    /// Switches Home and the widgets back to the default masjid's own timetable.
+    func useMasjid() async {
+        guard let slug = defaultSlug else { return }
+        Store.source = "masjid"
+        usingMasjid = true
+        Haptics.success()
+        WidgetCenter.shared.reloadAllTimelines()
+        await loadDay(slug)
+        await Planner.reschedule(for: days[slug])
+    }
+
+    /// Switches Home and the widgets to locally calculated times for a place. The default masjid, if any, is kept for later.
+    func useLocalTimes(place p: Place? = nil) async {
+        if let p { setPlace(p) }
+        Store.source = "local"
+        usingMasjid = false
+        Haptics.success()
+        WidgetCenter.shared.reloadAllTimelines()
+        await Planner.reschedule(for: activeDay())
+    }
+
+    /// Saves the user's place. Local times, distances and the Qibla all use it.
+    func setPlace(_ p: Place) {
+        Store.place = p
+        place = p
+        WidgetCenter.shared.reloadAllTimelines()
+        Task { await Planner.reschedule(for: activeDay()) }
+    }
+
+    func setHanafiAsr(_ on: Bool) {
+        Store.hanafiAsr = on
+        hanafiAsr = on
+        Haptics.tap()
+        WidgetCenter.shared.reloadAllTimelines()
+        Task { await Planner.reschedule(for: activeDay()) }
+    }
+
+    func finishOnboarding() {
+        Store.onboarded = true
+        onboarded = true
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    /// How many of the three setup steps are done: prayer times, location, notifications.
+    var setupDone: Int { [prayerTimesSummary != nil, place != nil, Store.notifyPrayers || Store.notifySunrise].filter { $0 }.count }
 
     func setTheme(_ t: WidgetTheme, for size: WidgetSize) {
         Store.setThemeId(t.id, for: size); themeIds[size] = t.id

@@ -6,26 +6,37 @@ struct HomeView: View {
     @State private var showPicker = false
     @State private var showMaps = false
     @State private var showBell = false
+    @State private var showCities = false
+
+    /// The masjid shown in the header: the default masjid, or the "local" stand-in named after the user's city.
+    private var homeMosque: Mosque? {
+        if app.usingMasjid { return app.defaultMosque ?? app.defaultSlug.flatMap { s in app.days[s].map { $0.mosque } } }
+        return app.place.map { LocalTimes.mosque(for: $0) }
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    if let m = app.defaultMosque ?? app.defaultSlug.flatMap({ s in app.days[s].map { $0.mosque } }) {
+                    if let m = homeMosque {
                         header(m)
-                        if let day = app.days[m.slug] {
+                        if app.activeDay() != nil {
                             TimelineView(.periodic(from: Date(), by: 15)) { ctx in
+                                if let day = app.activeDay(at: ctx.date) {
                                 VStack(alignment: .leading, spacing: 20) {
                                     HStack(spacing: 12) {
                                         Text(TimeLogic.dayHeading(ctx.date, zoneId: day.mosque.timezone)).font(.system(size: 21, weight: .regular)).foregroundStyle(Palette.muted)
                                         Spacer(minLength: 0)
                                         Button { Haptics.tap(); showBell = true } label: { RoundIcon(system: "bell", size: 56) }.accessibilityLabel("Notifications")
-                                        Button { Haptics.tap(); showMaps = true } label: { RoundIcon(system: "location", size: 56) }.accessibilityLabel("Open in Maps")
+                                        if app.usingMasjid {
+                                            Button { Haptics.tap(); showMaps = true } label: { RoundIcon(system: "location", size: 56) }.accessibilityLabel("Open in Maps")
+                                        }
                                     }
                                     if !TimeLogic.isToday(day, now: ctx.date) { OldTimesBanner(day: day) }
                                     if let n = TimeLogic.next(day, after: ctx.date), TimeLogic.isToday(day, now: ctx.date) { NextPrayerCard(next: n, now: ctx.date) }
                                     TimetableView(day: day, now: ctx.date)
                                     FreshnessFooter(day: day, note: app.dayNotes[m.slug], now: ctx.date)
+                                }
                                 }
                             }
                         } else {
@@ -42,19 +53,20 @@ struct HomeView: View {
             .background(Palette.bg.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showPicker) { DefaultPickerSheet() }
+            .sheet(isPresented: $showCities) { CitySheet(current: app.place) { p in app.setPlace(p) } }
             .sheet(isPresented: $showMaps) { if let m = app.defaultMosque { MapsSheet(mosque: m) } }
             .sheet(isPresented: $showBell) { NotificationsSheet() }
         }
     }
 
     private func header(_ m: Mosque) -> some View {
-        Button { Haptics.tap(); showPicker = true } label: {
+        Button { Haptics.tap(); if app.usingMasjid { showPicker = true } else { showCities = true } } label: {
             HStack(alignment: .center, spacing: 16) {
                 MasjidLogo(mosque: m, size: 84)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(m.name).font(.system(size: 33, weight: .bold)).foregroundStyle(Palette.text)
                         .multilineTextAlignment(.leading).lineLimit(2).minimumScaleFactor(0.75)
-                    Text(m.addressLine).font(.system(size: 16)).foregroundStyle(Palette.muted)
+                    Text(app.usingMasjid ? m.addressLine : "Local prayer times").font(.system(size: 16)).foregroundStyle(Palette.muted)
                         .multilineTextAlignment(.leading).lineLimit(2).minimumScaleFactor(0.8)
                 }
                 Spacer(minLength: 0)
@@ -65,10 +77,10 @@ struct HomeView: View {
 
     private var empty: some View {
         VStack(spacing: 14) {
-            Image(systemName: "building.columns").font(.system(size: 40)).foregroundStyle(Palette.teal)
-            Text("Choose your masjid").font(.system(size: 22, weight: .bold))
-            Text("Pick a default masjid to see its prayer times here and in your widgets.").multilineTextAlignment(.center).foregroundStyle(Palette.muted)
-            Button("Browse masjids") { app.selectedTab = 1 }.buttonStyle(TealButtonStyle())
+            DomeGlyph(size: 48).foregroundStyle(Palette.teal)
+            Text("Set up your prayer times").font(.system(size: 22, weight: .bold))
+            Text("Choose a masjid, or set your location for local prayer times.").multilineTextAlignment(.center).foregroundStyle(Palette.muted)
+            Button("Set up") { app.selectedTab = 4 }.buttonStyle(TealButtonStyle())
         }
         .padding(.top, 80)
     }
@@ -95,7 +107,7 @@ struct NextPrayerCard: View {
                     Rectangle().fill(Color.white.opacity(0.28)).frame(width: 1, height: 74).padding(.top, 4)
                     HStack(spacing: 16) {
                         timeColumn("Start", next.row.begins)
-                        timeColumn("Jama'ah", next.row.jamaah ?? next.row.main)
+                        if next.row.jamaah != nil { timeColumn("Jama'ah", next.row.jamaah) }
                     }
                 }
                 .foregroundStyle(.white)
@@ -154,7 +166,7 @@ struct DefaultPickerSheet: View {
                         MasjidLogo(mosque: m, size: 44)
                         VStack(alignment: .leading) { Text(m.name).foregroundStyle(Palette.text); Text(m.addressLine).font(.caption).foregroundStyle(Palette.muted) }
                         Spacer()
-                        if m.slug == app.defaultSlug { Image(systemName: "checkmark").foregroundStyle(Palette.teal) }
+                        if app.usingMasjid && m.slug == app.defaultSlug { Image(systemName: "checkmark").foregroundStyle(Palette.teal) }
                     }
                 }
             }

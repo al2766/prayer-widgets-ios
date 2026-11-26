@@ -90,3 +90,48 @@ final class PostcodeTests: XCTestCase {
         XCTAssertEqual(m.postcode, "HP13 6GN")
     }
 }
+
+final class LocalTimesTests: XCTestCase {
+    private func date(_ s: String) -> Date {
+        let f = DateFormatter(); f.timeZone = TimeZone(identifier: "Europe/London"); f.dateFormat = "yyyy-MM-dd HH:mm"
+        return f.date(from: s)!
+    }
+    private let london = Place(name: "London, UK", lat: 51.5074, lon: -0.1278)
+    private let edinburgh = Place(name: "Edinburgh, UK", lat: 55.9533, lon: -3.1883)
+
+    func testOrderAndFormat() throws {
+        let d = try XCTUnwrap(LocalTimes.day(place: london, now: date("2026-11-26 10:00"), hanafiAsr: false))
+        let t = d.beginning
+        let all = [t.fajr, t.sunrise, t.dhuhr, t.asr, t.maghrib, t.isha].compactMap { $0 }
+        XCTAssertEqual(all.count, 6)
+        XCTAssertEqual(all, all.sorted())                       // 24-hour HH:mm strings sort in time order
+        XCTAssertTrue(all.allSatisfy { $0.count == 5 && $0.contains(":") })
+        XCTAssertEqual(d.date, "2026-11-26")
+        XCTAssertEqual(d.mosque.name, "London")
+        XCTAssertNil(d.jamaah.fajr)
+    }
+
+    func testMidwinterLondonSunriseAndSunset() throws {
+        let d = try XCTUnwrap(LocalTimes.day(place: london, now: date("2025-12-21 10:00"), hanafiAsr: false))
+        let sunrise = try XCTUnwrap(d.beginning.sunrise), maghrib = try XCTUnwrap(d.beginning.maghrib)
+        XCTAssertTrue(("08:00"..."08:08").contains(sunrise), sunrise)      // real sunrise about 08:04
+        XCTAssertTrue(("15:50"..."16:02").contains(maghrib), maghrib)      // real sunset about 15:53, method adds 3 minutes
+    }
+
+    func testHanafiAsrIsLater() throws {
+        let a = try XCTUnwrap(LocalTimes.day(place: london, now: date("2026-11-26 10:00"), hanafiAsr: false)?.beginning.asr)
+        let b = try XCTUnwrap(LocalTimes.day(place: london, now: date("2026-11-26 10:00"), hanafiAsr: true)?.beginning.asr)
+        XCTAssertLessThan(a, b)
+    }
+
+    func testScottishMidsummerStillGivesTimes() throws {
+        let d = try XCTUnwrap(LocalTimes.day(place: edinburgh, now: date("2026-06-21 10:00"), hanafiAsr: false))
+        XCTAssertNotNil(d.beginning.fajr); XCTAssertNotNil(d.beginning.isha)
+        XCTAssertGreaterThan(try XCTUnwrap(d.beginning.isha), try XCTUnwrap(d.beginning.maghrib))
+        XCTAssertLessThan(try XCTUnwrap(d.beginning.fajr), try XCTUnwrap(d.beginning.sunrise))
+    }
+
+    func testSourceDefaults() {
+        XCTAssertEqual(LocalTimes.shortName(london), "London")
+    }
+}

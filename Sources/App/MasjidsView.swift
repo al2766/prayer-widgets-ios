@@ -153,7 +153,7 @@ struct MasjidsView: View {
     }
 
     private func row(_ m: Mosque) -> some View {
-        let isDefault = m.slug == app.defaultSlug
+        let isDefault = app.usingMasjid && m.slug == app.defaultSlug
         return HStack(alignment: .center, spacing: 14) {
             HStack(alignment: .center, spacing: 16) {
                 MasjidLogo(mosque: m, size: 76)
@@ -197,7 +197,7 @@ struct MasjidsView: View {
         ZStack {
             Color.black.opacity(0.42).ignoresSafeArea().onTapGesture { pendingDefault = nil }
             VStack(spacing: 22) {
-                Text("Set as default masjid?").font(.system(size: 24, weight: .bold)).multilineTextAlignment(.center)
+                Text(app.usingMasjid ? "Set as default masjid?" : "Change prayer times to this masjid?").font(.system(size: 24, weight: .bold)).multilineTextAlignment(.center)
                 HStack(spacing: 14) {
                     MasjidLogo(mosque: m, size: 70)
                     VStack(alignment: .leading, spacing: 4) {
@@ -206,9 +206,13 @@ struct MasjidsView: View {
                     }
                     Spacer(minLength: 0)
                 }
+                if !app.usingMasjid {
+                    Text("Home and your widgets will show this masjid's timetable instead of local prayer times.")
+                        .font(.system(size: 16)).foregroundStyle(Palette.muted).multilineTextAlignment(.center)
+                }
                 HStack(spacing: 12) {
-                    Button("Cancel") { pendingDefault = nil }.buttonStyle(SoftButtonStyle())
-                    Button("Set as default") {
+                    Button(app.usingMasjid ? "Cancel" : "No") { pendingDefault = nil }.buttonStyle(SoftButtonStyle())
+                    Button(app.usingMasjid ? "Set as default" : "Yes") {
                         pendingDefault = nil
                         Task { await app.setDefault(m) }
                     }.buttonStyle(TealButtonStyle())
@@ -285,6 +289,7 @@ struct MasjidDetailView: View {
     let mosque: Mosque
     @Environment(\.dismiss) private var dismiss
     @State private var showMaps = false
+    @State private var askSwitch = false
 
     var body: some View {
         ScrollView {
@@ -294,7 +299,7 @@ struct MasjidDetailView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(mosque.name).font(.system(size: 27, weight: .bold))
                         Text(mosque.addressLine).font(.system(size: 15)).foregroundStyle(Palette.muted)
-                        if mosque.slug == app.defaultSlug { DefaultBadge() }
+                        if app.usingMasjid && mosque.slug == app.defaultSlug { DefaultBadge() }
                     }
                 }
                 if let day = app.days[mosque.slug] {
@@ -309,10 +314,12 @@ struct MasjidDetailView: View {
                     Text(app.dayNotes[mosque.slug] ?? "Loading times…").foregroundStyle(Palette.muted)
                 }
                 Button { showMaps = true } label: { Label("Open in Maps", systemImage: "location") }.buttonStyle(SoftButtonStyle())
-                if mosque.slug == app.defaultSlug {
+                if app.usingMasjid && mosque.slug == app.defaultSlug {
                     Button("Default masjid") {}.buttonStyle(TealButtonStyle(enabled: false)).disabled(true)
                 } else {
-                    Button("Set as Default") { Task { await app.setDefault(mosque) } }.buttonStyle(TealButtonStyle())
+                    Button("Set as Default") {
+                        if app.usingMasjid { Task { await app.setDefault(mosque) } } else { askSwitch = true }
+                    }.buttonStyle(TealButtonStyle())
                 }
             }
             .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 130)   // clears the floating tab bar
@@ -327,6 +334,10 @@ struct MasjidDetailView: View {
         .background(Palette.bg.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showMaps) { MapsSheet(mosque: mosque) }
+        .alert("Change prayer times to this masjid?", isPresented: $askSwitch) {
+            Button("No", role: .cancel) {}
+            Button("Yes") { Task { await app.setDefault(mosque) } }
+        } message: { Text("Home and your widgets will show this masjid's timetable instead of local prayer times.") }
         .task { await app.loadDay(mosque.slug) }
         .refreshable { await app.loadDay(mosque.slug) }
     }

@@ -9,11 +9,12 @@ struct TimetableView: View {
     var body: some View {
         let next = TimeLogic.next(day, after: now)
         let rows = TimeLogic.rows(day)
+        let jam = rows.contains { $0.jamaah != nil }          // locally calculated times have no jama'ah
         VStack(spacing: 0) {
             HStack {
                 Spacer()
                 Text("Start").frame(width: 78, alignment: .trailing)
-                Text("Jama'ah").frame(width: 78, alignment: .trailing)
+                if jam { Text("Jama'ah").frame(width: 78, alignment: .trailing) }
             }
             .font(.system(size: 14, weight: .medium)).foregroundStyle(Palette.muted)
             .padding(.horizontal, 18).padding(.bottom, 10)
@@ -26,7 +27,7 @@ struct TimetableView: View {
                     Text(row.prayer.title).fontWeight(isSunrise ? .regular : .bold)
                     Spacer(minLength: 4)
                     Text(row.begins ?? "–").frame(width: 78, alignment: .trailing)
-                    Text(isSunrise ? "" : (row.jamaah ?? "–")).frame(width: 78, alignment: .trailing)
+                    if jam { Text(isSunrise ? "" : (row.jamaah ?? "–")).frame(width: 78, alignment: .trailing) }
                 }
                 .font(.system(size: isSunrise ? 19 : 21)).monospacedDigit()
                 .foregroundStyle(isSunrise ? Palette.muted : Palette.text)
@@ -66,7 +67,10 @@ struct FreshnessFooter: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            if let t = TimeLogic.updatedText(day.freshness, zoneId: day.mosque.timezone, now: now) {
+            if day.mosque.slug == LocalTimes.slug {
+                Label("Calculated for your location (\(LocalTimes.methodName)). Your masjid's times may differ.", systemImage: "location")
+                    .font(.system(size: 14)).foregroundStyle(Palette.muted)
+            } else if let t = TimeLogic.updatedText(day.freshness, zoneId: day.mosque.timezone, now: now) {
                 Label("Updated \(Self.phrase(t))", systemImage: "arrow.triangle.2.circlepath").font(.system(size: 14)).foregroundStyle(Palette.muted)
             }
             if let stale = TimeLogic.staleNote(day.freshness) { Text(stale).font(.system(size: 13)).foregroundStyle(.orange) }

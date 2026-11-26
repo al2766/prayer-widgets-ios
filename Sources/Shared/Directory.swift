@@ -10,9 +10,10 @@ public struct Place: Codable, Equatable, Hashable, Identifiable {
 
     /// Shown first in "Choose Location". Centre-of-city coordinates, plenty accurate for a Qibla bearing.
     public static let suggested: [Place] = [
-        Place(name: "Manchester, UK", lat: 53.4808, lon: -2.2426),
         Place(name: "London, UK", lat: 51.5074, lon: -0.1278),
         Place(name: "Birmingham, UK", lat: 52.4862, lon: -1.8904),
+        Place(name: "Manchester, UK", lat: 53.4808, lon: -2.2426),
+        Place(name: "Leicester, UK", lat: 52.6369, lon: -1.1398),
         Place(name: "Leeds, UK", lat: 53.8008, lon: -1.5491),
         Place(name: "Glasgow, UK", lat: 55.8642, lon: -4.2518),
     ]

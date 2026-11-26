@@ -6,8 +6,9 @@ let package = Package(
     name: "Shared",
     platforms: [.macOS(.v12), .iOS(.v16)],
     products: [.library(name: "Shared", targets: ["Shared"])],
+    dependencies: [.package(url: "https://github.com/batoulapps/adhan-swift", from: "1.4.0")],
     targets: [
-        .target(name: "Shared", path: "Sources/Shared"),
+        .target(name: "Shared", dependencies: [.product(name: "Adhan", package: "adhan-swift")], path: "Sources/Shared"),
         .testTarget(name: "SharedTests", dependencies: ["Shared"], path: "Tests/SharedTests", resources: [.copy("Fixtures")]),
     ]
 )

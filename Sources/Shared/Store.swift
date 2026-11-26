@@ -11,6 +11,26 @@ public enum Store {
         set { defaults.set(newValue, forKey: "defaultSlug") }
     }
 
+    /// "masjid" or "local". Phones that already had a default masjid before this setting existed keep following that masjid.
+    public static var source: String? {
+        get { defaults.string(forKey: "source") }
+        set { defaults.set(newValue, forKey: "source") }
+    }
+    /// True when Home and the widgets show a chosen masjid's own timetable; false means locally calculated times.
+    public static var usingMasjid: Bool {
+        defaultSlug != nil && (source ?? "masjid") == "masjid"
+    }
+    /// Whether the first-run questions are done. A phone that already has a default masjid counts as done.
+    public static var onboarded: Bool {
+        get { (defaults.object(forKey: "onboarded") as? Bool) ?? (defaultSlug != nil) }
+        set { defaults.set(newValue, forKey: "onboarded") }
+    }
+    /// Later (Hanafi) Asr for locally calculated times.
+    public static var hanafiAsr: Bool {
+        get { defaults.bool(forKey: "hanafiAsr") }
+        set { defaults.set(newValue, forKey: "hanafiAsr") }
+    }
+
     // Theme and layout are chosen per widget size (small, medium). Every widget of that size follows them.
     public static func themeId(_ size: WidgetSize) -> String {
         defaults.string(forKey: "themeId.\(size.rawValue)") ?? defaults.string(forKey: "themeId") ?? WidgetTheme.all[0].id
@@ -35,6 +55,12 @@ public enum Store {
     public static var place: Place? {
         get { defaults.data(forKey: "place").flatMap { try? JSONDecoder().decode(Place.self, from: $0) } }
         set { defaults.set(newValue.flatMap { try? JSONEncoder().encode($0) }, forKey: "place") }
+    }
+
+    /// True when the user told the Qibla screen to use the phone's own location instead of the saved city.
+    public static var qiblaUsesDevice: Bool {
+        get { defaults.bool(forKey: "qiblaUsesDevice") }
+        set { defaults.set(newValue, forKey: "qiblaUsesDevice") }
     }
 
     /// Masjid requests this phone has made. There are no accounts, so the phone keeps its own list.

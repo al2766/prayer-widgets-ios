@@ -2,7 +2,7 @@ import WidgetKit
 import SwiftUI
 import Shared
 
-// Every widget shows the user's default masjid from the app. There is no picker: to show another masjid, change the default in the app.
+// Every widget shows what the app is set to: the default masjid's own timetable, or locally calculated times. There is no picker: change it in the app.
 
 /// Which half of the day a lock screen widget shows.
 enum LockPart {
@@ -34,7 +34,12 @@ struct PrayerProvider: TimelineProvider {
         Task {
             let entries = await load(at: Date())
             // Ask again in 3 hours, or sooner when no real times are available yet.
-            let refresh = Date().addingTimeInterval(entries.first?.day == nil ? 30 * 60 : 3 * 3600)
+            var refresh = Date().addingTimeInterval(entries.first?.day == nil ? 30 * 60 : 3 * 3600)
+            // Local times are worked out on the phone, so ask again just after midnight (UK) for the new day.
+            if !Store.usingMasjid, let zone = TimeZone(identifier: LocalTimes.zoneId) {
+                var cal = Calendar(identifier: .gregorian); cal.timeZone = zone
+                if let midnight = cal.nextDate(after: Date(), matching: DateComponents(hour: 0, minute: 1), matchingPolicy: .nextTime), midnight < refresh { refresh = midnight }
+            }
             completion(Timeline(entries: entries, policy: .after(refresh)))
         }
     }
@@ -46,8 +51,16 @@ struct PrayerProvider: TimelineProvider {
                         smallTheme: Store.themeId(.small), mediumTheme: Store.themeId(.medium),
                         smallLayout: Store.layoutId(.small), mediumLayout: Store.layoutId(.medium))
         }
+        if !Store.usingMasjid {
+            guard let place = Store.place, let day = LocalTimes.day(place: place, now: now, hanafiAsr: Store.hanafiAsr) else {
+                return [entry(now, nil, nil, "Open the app to set up your prayer times")]
+            }
+            await Planner.reschedule(for: day)
+            let tail = TimeLogic.schedule(day).map(\.at).filter { $0 > now }
+            return ([now] + tail).map { entry($0, day.mosque.name, day, nil) }
+        }
         guard let slug = Store.defaultSlug else {
-            return [entry(now, nil, nil, "Open the app and choose your default masjid")]
+            return [entry(now, nil, nil, "Open the app to set up your prayer times")]
         }
         let cache = Cache()
         var day: PrayerResponse?
@@ -94,7 +107,7 @@ struct PrayerHomeWidget: Widget {
             PrayerHomeView(entry: entry)
         }
         .configurationDisplayName("Prayer times")
-        .description("Today's prayer times for your default masjid. Change the default in the app.")
+        .description("Today's prayer times for your masjid or your location. Change it in the app.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
@@ -109,7 +122,7 @@ struct LockWidgetView: View {
     var body: some View {
         Group {
             if let day = entry.day { grid(day) }
-            else { Text(entry.note ?? "Open the app and choose your default masjid").font(.caption2).multilineTextAlignment(.center) }
+            else { Text(entry.note ?? "Open the app to set up your prayer times").font(.caption2).multilineTextAlignment(.center) }
         }
         .containerBackground(.clear, for: .widget)
     }
@@ -117,6 +130,7 @@ struct LockWidgetView: View {
     @ViewBuilder private func grid(_ day: PrayerResponse) -> some View {
         let prayers = part.prayers
         let rows = Dictionary(uniqueKeysWithValues: TimeLogic.rows(day).map { ($0.prayer, $0) })
+        let jam = rows.values.contains { $0.jamaah != nil }     // locally calculated times have no jama'ah row
         Grid(alignment: .center, horizontalSpacing: part == .left ? 5 : 9, verticalSpacing: 1) {
             GridRow {
                 if part == .left { Color.clear.frame(width: 12, height: 1) }
@@ -126,10 +140,12 @@ struct LockWidgetView: View {
                 if part == .left { Image(systemName: "clock").font(.system(size: 9)).frame(width: 12) }
                 ForEach(prayers, id: \.self) { Text(rows[$0]?.begins ?? "–") }
             }
-            GridRow {
-                if part == .left { DomeIcon().frame(width: 12) }
-                ForEach(prayers, id: \.self) { p in
-                    Text(p == .sunrise ? "–" : (rows[p]?.jamaah ?? "–"))
+            if jam {
+                GridRow {
+                    if part == .left { DomeIcon().frame(width: 12) }
+                    ForEach(prayers, id: \.self) { p in
+                        Text(p == .sunrise ? "–" : (rows[p]?.jamaah ?? "–"))
+                    }
                 }
             }
         }
