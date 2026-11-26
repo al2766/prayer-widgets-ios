@@ -10,6 +10,7 @@ final class CompassModel: NSObject, ObservableObject, CLLocationManagerDelegate 
     @Published var status: CLAuthorizationStatus
     @Published var accuracy: Double = -1
     private let manager = CLLocationManager()
+    private var running = false                       // true only while the Qibla tab is on screen
 
     override init() {
         status = CLLocationManager().authorizationStatus
@@ -27,14 +28,15 @@ final class CompassModel: NSObject, ObservableObject, CLLocationManagerDelegate 
     }
 
     func start() {
+        running = true
         if allowed { manager.startUpdatingLocation() }
         if CLLocationManager.headingAvailable() { manager.startUpdatingHeading() }
     }
-    func stop() { manager.stopUpdatingLocation(); manager.stopUpdatingHeading() }
+    func stop() { running = false; manager.stopUpdatingLocation(); manager.stopUpdatingHeading() }
 
     func locationManagerDidChangeAuthorization(_ m: CLLocationManager) {
         status = m.authorizationStatus
-        start()
+        if running { start() }
     }
     func locationManager(_ m: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         coordinate = locations.last?.coordinate
@@ -97,13 +99,18 @@ struct QiblaView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Palette.bg.ignoresSafeArea())
         .onAppear {
+            guard app.selectedTab == 2 else { return }
             model.start()
             if place == nil && !model.allowed { showChooser = true }      // first visit: ask where to measure from
             Task { try? await Task.sleep(nanoseconds: 3_000_000_000); waited = true }
         }
         .onDisappear { model.stop() }
+        // The tab view keeps every tab alive, so start and stop by the chosen tab, not by appear and disappear.
+        .onChange(of: app.selectedTab) { _, tab in
+            if tab == 2 { model.start() } else { model.stop(); aligned = false }
+        }
         .onChange(of: needle) { _, a in
-            guard let a else { return }
+            guard app.selectedTab == 2, let a else { return }
             let on = abs(Qibla.difference(a, 0)) < 3
             if on && !aligned { Haptics.success() }
             withAnimation(.easeInOut(duration: 0.25)) { aligned = on }

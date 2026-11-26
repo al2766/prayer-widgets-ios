@@ -63,14 +63,14 @@ struct PrayerProvider: TimelineProvider {
         }
         if !Store.usingMasjid {
             guard let place = Store.place, let day = LocalTimes.day(place: place, now: now, hanafiAsr: Store.hanafiAsr) else {
-                return [entry(now, nil, nil, "Open the app to set up your prayer times")]
+                return [entry(now, nil, nil, "No city saved. Open the app to set up your prayer times")]
             }
             await Planner.reschedule(for: day)
             let tail = TimeLogic.schedule(day).map(\.at).filter { $0 > now }
             return ([now] + tail).map { entry($0, day.mosque.name, day, nil) }
         }
         guard let slug = Store.defaultSlug else {
-            return [entry(now, nil, nil, "Open the app to set up your prayer times")]
+            return [entry(now, nil, nil, "No masjid saved. Open the app to set up your prayer times")]
         }
         let cache = Cache()
         var day: PrayerResponse?

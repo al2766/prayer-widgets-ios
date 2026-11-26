@@ -37,17 +37,22 @@ struct TimetableView: View {
                 if i < rows.count - 1, !on, rows[i + 1].prayer != next?.row.prayer { Divider().overlay(Palette.line).padding(.horizontal, 10) }
             }
 
-            ForEach(Array(day.jumuah.enumerated()), id: \.offset) { i, t in
+            if !day.jumuah.isEmpty {
                 Divider().overlay(Palette.line).padding(.horizontal, 10)
-                HStack(spacing: 12) {
-                    DomeGlyph(size: 26)
-                    Text(day.jumuah.count > 1 ? "Jumu'ah \(i + 1)" : "Jumu'ah").fontWeight(.bold)
-                    Spacer()
-                    Text(t).monospacedDigit().frame(width: 78, alignment: .trailing)
+                VStack(spacing: 10) {
+                    ForEach(Array(day.jumuah.enumerated()), id: \.offset) { i, t in
+                        HStack(spacing: 12) {
+                            DomeGlyph(size: 26)
+                            Text(day.jumuah.count > 1 ? "Jumu'ah \(i + 1)" : "Jumu'ah").fontWeight(.bold)
+                            Spacer()
+                            Text(t).monospacedDigit().frame(width: 78, alignment: .trailing)
+                        }
+                        .font(.system(size: 21)).foregroundStyle(Palette.teal)
+                        .padding(.horizontal, 18).padding(.vertical, 15)
+                        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Palette.nextRow))
+                    }
                 }
-                .font(.system(size: 21)).foregroundStyle(Palette.teal)
-                .padding(.horizontal, 18).padding(.vertical, 15)
-                .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Palette.nextRow))
+                .padding(.top, 10)
             }
         }
     }
