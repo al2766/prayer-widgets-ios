@@ -23,9 +23,13 @@ struct PrayerEntry: TimelineEntry {
 
 struct PrayerProvider: TimelineProvider {
     func placeholder(in context: Context) -> PrayerEntry {
-        // Sample times (calculated for London) so the widget gallery and a freshly added widget look right before real times arrive.
-        let sample = Place.suggested.first.flatMap { LocalTimes.day(place: $0, now: Date(), hanafiAsr: false) }
-        return PrayerEntry(date: Date(), mosqueName: "Your masjid", day: sample, note: sample == nil ? "Loading…" : nil)
+        // The same times Home shows: the default masjid's last saved times, or times calculated for the saved city. Never invented.
+        var day: PrayerResponse?
+        if Store.usingMasjid, let slug = Store.defaultSlug { day = Cache().times(slug: slug) }
+        else if let place = Store.place { day = LocalTimes.day(place: place, now: Date(), hanafiAsr: Store.hanafiAsr) }
+        return PrayerEntry(date: Date(), mosqueName: day?.mosque.name, day: day, note: day == nil ? "Loading…" : nil,
+                           smallTheme: Store.themeId(.small), mediumTheme: Store.themeId(.medium),
+                           smallLayout: Store.layoutId(.small), mediumLayout: Store.layoutId(.medium))
     }
 
     func getSnapshot(in context: Context, completion: @escaping (PrayerEntry) -> Void) {
