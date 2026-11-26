@@ -56,6 +56,14 @@ jobs:
             -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
             -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" | tail -40
           ls "$RUNNER_TEMP/out"
+      - name: Show whether the exported app carries the App Group (the widget needs it to read the app's saved choices)
+        run: |
+          cd "$RUNNER_TEMP/out" && rm -rf x && mkdir x && unzip -q PrayerWidgets.ipa -d x
+          for a in x/Payload/*.app x/Payload/*.app/PlugIns/*.appex; do
+            echo "== $a"
+            codesign -d --entitlements :- "$a" 2>/dev/null | grep -A2 -i "application-groups" || echo "NO application-groups entitlement"
+          done
+          rm -rf x
       - name: Upload to TestFlight
         if: ${{ startsWith(github.ref_name, 'release-') || inputs.upload == true }}
         run: |
