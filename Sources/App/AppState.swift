@@ -11,8 +11,9 @@ final class AppState: ObservableObject {
     @Published var defaultSlug: String? = Store.defaultSlug
     @Published var days: [String: PrayerResponse] = [:]
     @Published var dayNotes: [String: String] = [:]
-    @Published var themeId: String = Store.themeId
-    @Published var layoutId: String = Store.layoutId
+    @Published var themeIds: [WidgetSize: String] = Dictionary(uniqueKeysWithValues: WidgetSize.allCases.map { ($0, Store.themeId($0)) })
+    @Published var layoutIds: [WidgetSize: String] = Dictionary(uniqueKeysWithValues: WidgetSize.allCases.map { ($0, Store.layoutId($0)) })
+    @Published var requests: [SavedRequest] = Store.requests
     @Published var selectedTab = 0
     @Published var toast: String?
     @Published var bootstrapped = false
@@ -23,8 +24,8 @@ final class AppState: ObservableObject {
 
     var defaultMosque: Mosque? { mosques.first { $0.slug == defaultSlug } }
     var defaultDay: PrayerResponse? { defaultSlug.flatMap { days[$0] } }
-    var theme: WidgetTheme { WidgetTheme.byId(themeId) }
-    var layout: WidgetLayout { WidgetLayout.byId(layoutId) }
+    func theme(_ size: WidgetSize) -> WidgetTheme { WidgetTheme.byId(themeIds[size] ?? WidgetTheme.all[0].id) }
+    func layout(_ size: WidgetSize) -> WidgetLayout { WidgetLayout.byId(layoutIds[size] ?? WidgetLayout.classic.rawValue) }
 
     // MARK: Loading
 
@@ -84,16 +85,41 @@ final class AppState: ObservableObject {
         await Planner.reschedule(for: days[m.slug])
     }
 
-    func setTheme(_ t: WidgetTheme) {
-        Store.themeId = t.id; themeId = t.id
+    func setTheme(_ t: WidgetTheme, for size: WidgetSize) {
+        Store.setThemeId(t.id, for: size); themeIds[size] = t.id
         Haptics.success(); showToast("Theme saved. Widgets are updating")
         WidgetCenter.shared.reloadAllTimelines()
     }
 
-    func setLayout(_ l: WidgetLayout) {
-        Store.layoutId = l.rawValue; layoutId = l.rawValue
+    func setLayout(_ l: WidgetLayout, for size: WidgetSize) {
+        Store.setLayoutId(l.rawValue, for: size); layoutIds[size] = l.rawValue
         Haptics.success(); showToast("Layout saved. Widgets are updating")
         WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    // MARK: Requests
+
+    /// Sends a request and remembers it on this phone so My Requests can show what happened to it.
+    func sendRequest(url: String, name: String) async throws {
+        let id = try await API.requestMosque(url: url, name: name)
+        if let id {
+            var list = requests.filter { $0.id != id }
+            list.insert(SavedRequest(id: id, name: name.isEmpty ? (URL(string: url)?.host ?? url) : name, url: url, date: Date()), at: 0)
+            requests = Array(list.prefix(50))
+            Store.requests = requests
+        }
+    }
+
+    /// Asks the Studio what happened to each saved request. Offline: keeps what the phone already knows.
+    func refreshRequests() async {
+        guard let states = try? await API.requestStates(ids: requests.map(\.id)) else { return }
+        var list = requests
+        for i in list.indices {
+            if let s = states.first(where: { $0.id == list[i].id }) { list[i].status = s.status; list[i].slug = s.slug }
+        }
+        requests = list
+        Store.requests = list
+        if states.contains(where: { $0.status == "added" }) { await loadMosques() }
     }
 
     func showToast(_ text: String) {

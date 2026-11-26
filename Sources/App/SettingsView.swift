@@ -58,7 +58,7 @@ struct NotificationsView: View {
                     }
                 }
             }
-            .tint(Palette.amber)
+            .tint(Palette.teal)
             if denied {
                 Section {
                     Text("Notifications are turned off for this app in iPhone Settings.").foregroundStyle(.orange)
@@ -96,11 +96,13 @@ struct FAQView: View {
     private let items: [(String, String)] = [
         ("Where do the times come from?", "From each masjid's own published timetable. We read it and check it before showing it."),
         ("Why do the times differ from other apps?", "Masjids set their own jama'ah times. We show the masjid's times, not a calculation."),
-        ("My masjid is missing. What do I do?", "Open the Masjids tab, tap Request a New Masjid and send the web address of its timetable. We review every request."),
+        ("My masjid is missing. What do I do?", "Open the Masjids tab and tap Add new. Search for it, or choose Add manually and send the web address of its timetable. We review every request, and My Requests shows what happened."),
         ("How often do the times update?", "Once a day, early in the morning UK time."),
         ("Why does the widget show yesterday's times early in the morning?", "New times arrive at about 03:30 UTC. Until then the last day's times are shown."),
-        ("How do I add the widget?", "Open the Widget tab, then How to Add. Hold your home screen, tap +, search Prayer Widgets and tap Add Widget."),
-        ("Does the app collect my data?", "No account, no ads and no tracking. Your location is only used on your phone for the Qibla compass."),
+        ("How do I add the widget?", "Open the Widget tab, then How to. It shows the steps for the home screen and the lock screen."),
+        ("Which masjid do my widgets show?", "Your default masjid. Tap the star next to a masjid in the Masjids tab to change it. Every widget updates."),
+        ("Why are there two lock screen widgets?", "The lock screen is small, so the timetable comes in two halves: Left (Fajr, Sunrise, Dhuhr) and Right (Asr, Maghrib, Isha). Add both side by side."),
+        ("Does the app collect my data?", "No account, no ads and no tracking. Your location, or the city you choose, is only used on your phone for the Qibla compass and for distances."),
     ]
 
     var body: some View {

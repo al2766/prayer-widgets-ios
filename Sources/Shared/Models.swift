@@ -6,10 +6,22 @@ public struct Mosque: Codable, Hashable, Identifiable {
     public let name: String
     public let timezone: String
     public let city: String?           // set by the admin; nil shows under "Other"
+    public let address: String?        // street address, shown under the name
+    public let area: String?           // district inside the city, used by the Area filter
+    public let lat: Double?            // map position, used only for distance
+    public let lon: Double?
+    public let logoPath: String?       // "/api/mosques/<slug>/logo" when the admin saved a logo
     public var id: String { slug }
-    public init(slug: String, name: String, timezone: String, city: String? = nil) {
+    public init(slug: String, name: String, timezone: String, city: String? = nil, address: String? = nil, area: String? = nil,
+                lat: Double? = nil, lon: Double? = nil, logoPath: String? = nil) {
         self.slug = slug; self.name = name; self.timezone = timezone; self.city = city
+        self.address = address; self.area = area; self.lat = lat; self.lon = lon; self.logoPath = logoPath
     }
+
+    /// "Manchester, UK" style line used when there is no street address.
+    public var cityLine: String { [city, "UK"].compactMap { $0 }.joined(separator: ", ") }
+    /// The street address when known, else the city line.
+    public var addressLine: String { (address?.isEmpty == false ? address : nil) ?? cityLine }
 }
 
 public struct MosqueList: Codable {

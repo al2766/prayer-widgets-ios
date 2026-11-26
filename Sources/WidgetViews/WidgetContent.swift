@@ -46,17 +46,17 @@ struct WidgetContent: View {
     private var empty: some View {
         VStack(spacing: 4) {
             Text(mosqueName ?? "Prayer Widgets").font(.headline).lineLimit(2).minimumScaleFactor(0.7)
-            Text(note ?? "Choose a mosque").font(.caption).foregroundStyle(secondary).multilineTextAlignment(.center)
+            Text(note ?? "Open the app and choose your default masjid").font(.caption).foregroundStyle(secondary).multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func prayers(_ day: PrayerResponse) -> [Row] { TimeLogic.rows(day).filter { $0.prayer != .sunrise } }
 
-    private func header(_ day: PrayerResponse) -> some View {
+    private func header(_ day: PrayerResponse, big: Bool = false) -> some View {
         Text(day.mosque.name)
-            .font(.system(size: small ? 11 : 12, weight: .semibold))
-            .foregroundStyle(secondary)
+            .font(.system(size: big ? 17 : (small ? 11 : 12), weight: big ? .bold : .semibold))
+            .foregroundStyle(big ? text : secondary)
             .lineLimit(1).minimumScaleFactor(0.6)
     }
 
@@ -84,56 +84,86 @@ struct WidgetContent: View {
         }
     }
 
-    /// Name on the left, start time and jama'ah time side by side on the far right.
+    /// Name on the left, start time and jama'ah time side by side. The medium widget adds column headings and the dome picture.
     private func classic(_ day: PrayerResponse, next: (row: Row, at: Date)?) -> some View {
-        let w: CGFloat = small ? 36 : 46
-        return VStack(alignment: .leading, spacing: small ? 3 : 4) {
-            header(day)
+        let w: CGFloat = small ? 36 : 52
+        let table = VStack(alignment: .leading, spacing: small ? 3 : 4) {
+            header(day, big: !small)
+            if !small {
+                HStack(spacing: 8) {
+                    Text("Prayer")
+                    Spacer(minLength: 2)
+                    Text("Start").frame(width: w, alignment: .trailing)
+                    Text("Jama'ah").frame(width: w + 6, alignment: .trailing)
+                }
+                .font(.system(size: 10, weight: .medium)).foregroundStyle(secondary).padding(.horizontal, 6)
+            }
             ForEach(prayers(day), id: \.prayer) { row in
                 let on = row.prayer == next?.row.prayer
                 HStack(spacing: small ? 4 : 8) {
-                    Text(row.prayer.short)
+                    Text(row.prayer.title)
                     Spacer(minLength: 2)
                     Text(row.begins ?? "–").frame(width: w, alignment: .trailing)
-                    Text(row.jamaah ?? "–").frame(width: w, alignment: .trailing)
+                    Text(row.jamaah ?? "–").frame(width: small ? w : w + 6, alignment: .trailing)
                 }
-                .font(.system(size: small ? 11 : 13, weight: on ? .bold : .regular)).monospacedDigit()
+                .font(.system(size: small ? 11 : 13, weight: on ? .bold : .semibold)).monospacedDigit()
                 .lineLimit(1).minimumScaleFactor(0.8)
                 .foregroundStyle(ink(on))
-                .padding(.horizontal, 5).padding(.vertical, 1.5)
+                .padding(.horizontal, 6).padding(.vertical, 1.5)
                 .background(pill(on))
             }
+            noteView()
+        }
+        return HStack(alignment: .bottom, spacing: 4) {
+            table.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            if !small { ArchArt(ink: text, glow: accent).frame(width: 84).frame(maxHeight: .infinity) }
+        }
+    }
+
+    private func nextFocus(_ day: PrayerResponse, _ n: (row: Row, at: Date)) -> some View {
+        ZStack(alignment: .bottomTrailing) {
+            if small { DomeArt(ink: text, glow: accent).frame(width: 92, height: 66).offset(x: 14, y: 14) }
+            if small { nextSmall(n) } else { nextMedium(day, n) }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    /// Small square, as in the mockup: prayer name, big time, countdown.
+    private func nextSmall(_ n: (row: Row, at: Date)) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(n.row.prayer.title).font(.system(size: 24, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7)
+            Text(n.row.main ?? "").font(.system(size: 42, weight: .bold, design: .rounded)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
+            (Text("in ") + Text(n.at, style: .relative)).font(.system(size: 14, weight: .semibold)).foregroundStyle(accent).lineLimit(1).minimumScaleFactor(0.7)
+            Spacer(minLength: 0)
             noteView()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    private func nextFocus(_ day: PrayerResponse, _ n: (row: Row, at: Date)) -> some View {
+    private func nextMedium(_ day: PrayerResponse, _ n: (row: Row, at: Date)) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             header(day)
             Spacer(minLength: 0)
             Text("Next prayer").font(.system(size: 10, weight: .medium)).foregroundStyle(secondary)
             HStack(alignment: .firstTextBaseline) {
-                Text(n.row.prayer.title).font(.system(size: small ? 17 : 20, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7)
+                Text(n.row.prayer.title).font(.system(size: 20, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7)
                 Spacer(minLength: 4)
-                Text(n.row.main ?? "").font(.system(size: small ? 26 : 34, weight: .bold, design: .rounded)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
+                Text(n.row.main ?? "").font(.system(size: 34, weight: .bold, design: .rounded)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
             }
             (Text("in ") + Text(n.at, style: .relative)).font(.system(size: 12)).foregroundStyle(accent).lineLimit(1)
-            if !small {
-                Spacer(minLength: 4)
-                HStack(spacing: 4) {
-                    ForEach(prayers(day), id: \.prayer) { row in
-                        let on = row.prayer == n.row.prayer
-                        VStack(spacing: 1) {
-                            Text(row.prayer.short).font(.system(size: 10, weight: .medium))
-                            Text(row.main ?? "–").font(.system(size: 12, weight: .semibold)).monospacedDigit()
-                        }
-                        .lineLimit(1).minimumScaleFactor(0.7)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 3)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(on ? Color(hex: theme.highlightBg) : Color.clear))
-                        .foregroundStyle(on ? Color(hex: theme.highlightText) : text)
+            Spacer(minLength: 4)
+            HStack(spacing: 4) {
+                ForEach(prayers(day), id: \.prayer) { row in
+                    let on = row.prayer == n.row.prayer
+                    VStack(spacing: 1) {
+                        Text(row.prayer.short).font(.system(size: 10, weight: .medium))
+                        Text(row.main ?? "–").font(.system(size: 12, weight: .semibold)).monospacedDigit()
                     }
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 3)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(on ? Color(hex: theme.highlightBg) : Color.clear))
+                    .foregroundStyle(on ? Color(hex: theme.highlightText) : text)
                 }
             }
             noteView()

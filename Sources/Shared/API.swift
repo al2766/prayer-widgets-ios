@@ -18,16 +18,44 @@ public enum API {
     }
 
     /// Sends a "please add this mosque" request. The Studio only adds it to a list for the admin; nothing is fetched or added automatically.
-    public static func requestMosque(url: String) async throws {
+    /// Returns the request id, which the phone keeps so it can ask later what happened.
+    public static func requestMosque(url: String, name: String? = nil) async throws -> String? {
         var req = URLRequest(url: base.appendingPathComponent("api/requests"))
         req.httpMethod = "POST"
         req.timeoutInterval = 15
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try JSONEncoder().encode(["url": url])
-        let resp: URLResponse
-        do { (_, resp) = try await URLSession.shared.data(for: req) } catch { throw Failure.offline }
+        var body = ["url": url]
+        if let n = name?.trimmingCharacters(in: .whitespacesAndNewlines), !n.isEmpty { body["mosqueName"] = String(n.prefix(100)) }
+        req.httpBody = try JSONEncoder().encode(body)
+        let data: Data, resp: URLResponse
+        do { (data, resp) = try await URLSession.shared.data(for: req) } catch { throw Failure.offline }
         guard let h = resp as? HTTPURLResponse else { throw Failure.offline }
         guard (200..<300).contains(h.statusCode) else { throw Failure.http(h.statusCode) }
+        return (try? JSONDecoder().decode(RequestReceipt.self, from: data))?.id
+    }
+
+    struct RequestReceipt: Codable { let ok: Bool; let id: String? }
+    public struct RequestState: Codable, Equatable { public let id: String; public let status: String; public let slug: String? }
+    struct RequestStates: Codable { let requests: [RequestState] }
+
+    /// What happened to requests this phone made: received (still waiting), added, or closed.
+    public static func requestStates(ids: [String]) async throws -> [RequestState] {
+        guard !ids.isEmpty else { return [] }
+        var c = URLComponents(url: base.appendingPathComponent("api/requests/status"), resolvingAgainstBaseURL: false)!
+        c.queryItems = [URLQueryItem(name: "ids", value: ids.prefix(20).joined(separator: ","))]
+        var req = URLRequest(url: c.url!)
+        req.timeoutInterval = 15
+        let data: Data, resp: URLResponse
+        do { (data, resp) = try await URLSession.shared.data(for: req) } catch { throw Failure.offline }
+        guard let h = resp as? HTTPURLResponse else { throw Failure.offline }
+        guard (200..<300).contains(h.statusCode) else { throw Failure.http(h.statusCode) }
+        return try JSONDecoder().decode(RequestStates.self, from: data).requests
+    }
+
+    /// The saved logo of a masjid, when the admin saved one.
+    public static func logoURL(_ m: Mosque) -> URL? {
+        guard let p = m.logoPath, p.hasPrefix("/") else { return nil }
+        return URL(string: p, relativeTo: base)?.absoluteURL
     }
 
     public static func mosques() async throws -> [Mosque] {

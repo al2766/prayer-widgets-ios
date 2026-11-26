@@ -27,7 +27,7 @@ final class DisplayTests: XCTestCase {
 
     func testThemeLookupFallsBack() {
         XCTAssertEqual(WidgetTheme.byId("nope").id, WidgetTheme.all[0].id)
-        XCTAssertEqual(WidgetTheme.all.count, 6)
+        XCTAssertEqual(WidgetTheme.all.count, 7)
     }
 }
 

@@ -28,7 +28,7 @@ targets:
       properties:
         CFBundleDisplayName: Prayer Widgets
         UILaunchScreen: { UIColorName: LaunchNavy }
-        NSLocationWhenInUseUsageDescription: Used only to point the compass towards the Kaaba. Your location stays on your phone.
+        NSLocationWhenInUseUsageDescription: Used to point the compass towards the Kaaba and to show how far masjids are. Your location stays on your phone.
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
     settings:

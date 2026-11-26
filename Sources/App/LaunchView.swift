@@ -1,52 +1,8 @@
 import SwiftUI
 
-private let navyBg = Color(hex: 0x0F1B2D)
+private let tealBg = Color(hex: 0x0A3A45)
 private let cream = Color(hex: 0xFBE9CF)
 private let gold = Color(hex: 0xE8A24A)
-
-/// The arch outline from the logo: an onion arch with a pointed top, open at the bottom.
-struct ArchShape: Shape {
-    func path(in r: CGRect) -> Path {
-        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: r.minX + r.width * x / 100, y: r.minY + r.height * y / 120) }
-        var p = Path()
-        p.move(to: pt(0, 112))
-        p.addLine(to: pt(0, 58))
-        p.addCurve(to: pt(50, 0), control1: pt(0, 34), control2: pt(34, 18))
-        p.addCurve(to: pt(100, 58), control1: pt(66, 18), control2: pt(100, 34))
-        p.addLine(to: pt(100, 112))
-        return p
-    }
-}
-
-/// The dome with its spire, sitting inside the arch.
-struct DomeShape: Shape {
-    func path(in r: CGRect) -> Path {
-        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: r.minX + r.width * x / 100, y: r.minY + r.height * y / 60) }
-        var p = Path()
-        p.move(to: pt(0, 60))
-        p.addCurve(to: pt(46, 14), control1: pt(0, 34), control2: pt(22, 22))
-        p.addLine(to: pt(50, 0))
-        p.addLine(to: pt(54, 14))
-        p.addCurve(to: pt(100, 60), control1: pt(78, 22), control2: pt(100, 34))
-        p.closeSubpath()
-        return p
-    }
-}
-
-/// Rolling dark hills along the bottom with a lighter far ridge.
-struct HillsShape: Shape {
-    func path(in r: CGRect) -> Path {
-        var p = Path()
-        p.move(to: CGPoint(x: r.minX, y: r.maxY))
-        p.addLine(to: CGPoint(x: r.minX, y: r.maxY - r.height * 0.28))
-        p.addCurve(to: CGPoint(x: r.maxX, y: r.maxY - r.height * 0.58),
-                   control1: CGPoint(x: r.width * 0.45, y: r.maxY - r.height * 0.10),
-                   control2: CGPoint(x: r.width * 0.72, y: r.maxY - r.height * 0.52))
-        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
-        p.closeSubpath()
-        return p
-    }
-}
 
 /// Plays once at launch while the app loads its data underneath, then calls `onFinish`.
 /// About 2.3 seconds; with Reduce Motion on it just shows the finished logo briefly.
@@ -62,12 +18,12 @@ struct LaunchView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                navyBg.ignoresSafeArea()
+                tealBg.ignoresSafeArea()
                 // Warm glow rising behind the hills on the right.
                 RadialGradient(colors: [gold.opacity(0.55), gold.opacity(0)], center: .bottomTrailing, startRadius: 10, endRadius: geo.size.width * 0.9)
                     .ignoresSafeArea().opacity(hills)
                 HillsShape()
-                    .fill(LinearGradient(colors: [Color(hex: 0x23324A), Color(hex: 0x111E33)], startPoint: .top, endPoint: .bottom))
+                    .fill(LinearGradient(colors: [Color(hex: 0x14596A), Color(hex: 0x082E38)], startPoint: .top, endPoint: .bottom))
                     .frame(height: geo.size.height * 0.34)
                     .frame(maxHeight: .infinity, alignment: .bottom)
                     .offset(x: (1 - hills) * 90).opacity(hills)

@@ -12,8 +12,9 @@ public struct WidgetTheme: Identifiable, Equatable {
     public let highlightText: UInt32
 
     public static let all: [WidgetTheme] = [
-        WidgetTheme(id: "midnight", name: "Midnight and gold", bg: 0x0F1B2D, text: 0xF4EBDD, secondary: 0x9FB0C8, accent: 0xE8A24A, highlightBg: 0xE8A24A, highlightText: 0x0F1B2D),
-        WidgetTheme(id: "ivory", name: "Ivory and charcoal", bg: 0xF7F2E8, text: 0x1B1B1B, secondary: 0x6B665C, accent: 0xC98A2B, highlightBg: 0x14223A, highlightText: 0xFFFFFF),
+        WidgetTheme(id: "teal", name: "Deep teal", bg: 0x0C3F4F, text: 0xF4EBDD, secondary: 0x8FB5C1, accent: 0x5ED3DE, highlightBg: 0x2E6F86, highlightText: 0xFFFFFF),
+        WidgetTheme(id: "midnight", name: "Teal and gold", bg: 0x0C3F4F, text: 0xF4EBDD, secondary: 0x9FBFC8, accent: 0xE8A24A, highlightBg: 0xE8A24A, highlightText: 0x0C3F4F),
+        WidgetTheme(id: "ivory", name: "Ivory and charcoal", bg: 0xF7F2E8, text: 0x1B1B1B, secondary: 0x6B665C, accent: 0x0F6173, highlightBg: 0x0C3F4F, highlightText: 0xFFFFFF),
         WidgetTheme(id: "mono-dark", name: "Monochrome dark", bg: 0x141414, text: 0xF2F2F2, secondary: 0x8E8E8E, accent: 0xFFFFFF, highlightBg: 0xF2F2F2, highlightText: 0x141414),
         WidgetTheme(id: "mono-light", name: "Monochrome light", bg: 0xFFFFFF, text: 0x111111, secondary: 0x7A7A7A, accent: 0x111111, highlightBg: 0x111111, highlightText: 0xFFFFFF),
         WidgetTheme(id: "slate", name: "Muted slate", bg: 0x2B3441, text: 0xEDF1F5, secondary: 0xA3AFBD, accent: 0x8FB8DE, highlightBg: 0x8FB8DE, highlightText: 0x1B222C),
@@ -23,7 +24,9 @@ public struct WidgetTheme: Identifiable, Equatable {
     public static func byId(_ id: String) -> WidgetTheme { all.first { $0.id == id } ?? all[0] }
 }
 
-public enum WidgetSize: String { case small, medium }
+public enum WidgetSize: String, CaseIterable { case small, medium
+    public var title: String { self == .small ? "Small Widget" : "Medium Widget" }
+}
 
 /// How the information is arranged. Only layouts that fit a size are offered for it.
 public enum WidgetLayout: String, CaseIterable, Identifiable {
