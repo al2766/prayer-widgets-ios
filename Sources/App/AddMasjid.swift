@@ -106,7 +106,7 @@ struct AddMasjidSheet: View {
             } else {
                 HStack { line; Text("or").foregroundStyle(Palette.muted); line }
                 VStack(spacing: 0) {
-                    navRow("Search by location", icon: "mappin.and.ellipse") { path.append(Route.location) }
+                    navRow("Search by location", icon: "location") { path.append(Route.location) }
                     Divider().overlay(Palette.line)
                     navRow("Add manually", icon: "plus") { path.append(Route.request(name: "")) }
                 }
@@ -171,7 +171,7 @@ private struct LocationSearchView: View {
                 Divider().overlay(Palette.line)
                 selector("City", icon: "building.2", value: city ?? "Select city") { picking = .city }
                 Divider().overlay(Palette.line)
-                selector("Area", icon: "mappin.and.ellipse", value: area ?? (city == nil ? "Select area" : "All Areas")) { if city != nil { picking = .area } }
+                selector("Area", icon: "location", value: area ?? (city == nil ? "Select area" : "All Areas")) { if city != nil { picking = .area } }
             }
             .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white).overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Palette.line)))
             Spacer()

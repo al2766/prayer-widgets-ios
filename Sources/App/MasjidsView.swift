@@ -61,12 +61,10 @@ struct MasjidsView: View {
                         } else if shown.isEmpty {
                             emptyText(query.isEmpty ? "No masjids in \(city) yet." : "No masjids match “\(query)”.")
                         }
-                        TimelineView(.periodic(from: Date(), by: 30)) { ctx in
-                            VStack(spacing: 0) {
-                                ForEach(shown) { m in
-                                    row(m, now: ctx.date)
-                                    Divider().overlay(Palette.line)
-                                }
+                        VStack(spacing: 0) {
+                            ForEach(shown) { m in
+                                row(m)
+                                Divider().overlay(Palette.line)
                             }
                         }
                         if loc.status == .notDetermined && !shown.isEmpty {
@@ -148,25 +146,21 @@ struct MasjidsView: View {
         return Directory.distanceText(Directory.miles(fromLat: c.latitude, lon: c.longitude, toLat: lat, lon: lon))
     }
 
-    private func nextLine(_ m: Mosque, now: Date) -> String? {
-        guard let day = app.days[m.slug], TimeLogic.isToday(day, now: now), let n = TimeLogic.next(day, after: now) else { return nil }
-        return "\(n.row.prayer.title) · \(n.row.main ?? "") · \(TimeLogic.countdown(to: n.at, from: now))"
+    /// "M14 4HY" or "M14 4HY · 0.4 mi". Short on purpose: the full address is on the masjid's own page.
+    private func detailLine(_ m: Mosque) -> String {
+        [m.shortLine, distance(m)].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
-    private func row(_ m: Mosque, now: Date) -> some View {
+    private func row(_ m: Mosque) -> some View {
         let isDefault = m.slug == app.defaultSlug
-        return HStack(alignment: .top, spacing: 14) {
-            HStack(alignment: .top, spacing: 14) {
-                MasjidLogo(mosque: m, size: 64)
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 8) {
-                        Text(m.name).font(.system(size: 20, weight: .bold)).foregroundStyle(Palette.text).multilineTextAlignment(.leading)
-                        if isDefault { DefaultBadge() }
-                    }
-                    Text(m.addressLine).font(.system(size: 15)).foregroundStyle(Palette.muted).multilineTextAlignment(.leading)
-                    if let line = nextLine(m, now: now) {
-                        Label(line, systemImage: "sun.horizon").font(.system(size: 15, weight: .medium)).foregroundStyle(Palette.teal).lineLimit(1).minimumScaleFactor(0.8)
-                    }
+        return HStack(alignment: .center, spacing: 14) {
+            HStack(alignment: .center, spacing: 16) {
+                MasjidLogo(mosque: m, size: 76)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(m.name).font(.system(size: 21, weight: .bold)).foregroundStyle(Palette.text).multilineTextAlignment(.leading).lineLimit(2)
+                    Text(Directory.cityOf(m)).font(.system(size: 17)).foregroundStyle(Palette.text.opacity(0.85)).lineLimit(1)
+                    let d = detailLine(m)
+                    if !d.isEmpty { Text(d).font(.system(size: 15)).foregroundStyle(Palette.muted).lineLimit(1) }
                 }
                 Spacer(minLength: 0)
             }
@@ -175,24 +169,21 @@ struct MasjidsView: View {
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isButton)
 
-            VStack(alignment: .trailing, spacing: 6) {
-                HStack(spacing: 8) {
-                    Button { Haptics.tap(); mapsFor = m } label: {
-                        Image(systemName: "mappin.and.ellipse").font(.system(size: 18)).foregroundStyle(Palette.teal)
-                            .frame(width: 42, height: 42).background(Circle().fill(Palette.tealSoft))
-                    }
-                    .accessibilityLabel("Open \(m.name) in Maps")
-                    Button { Haptics.tap(); if !isDefault { pendingDefault = m } } label: {
-                        Image(systemName: isDefault ? "star.fill" : "star").font(.system(size: 22)).foregroundStyle(isDefault ? Palette.coral : Palette.muted)
-                            .frame(width: 34, height: 42)
-                    }
-                    .accessibilityLabel(isDefault ? "Default masjid" : "Set \(m.name) as default")
+            HStack(spacing: 8) {
+                Button { Haptics.tap(); mapsFor = m } label: {
+                    Image(systemName: "location").font(.system(size: 19)).foregroundStyle(Palette.teal)
+                        .frame(width: 46, height: 46).background(Circle().fill(Palette.tealSoft))
                 }
-                if let d = distance(m) { Text(d).font(.system(size: 15)).foregroundStyle(Palette.muted) }
+                .accessibilityLabel("Open \(m.name) in Maps")
+                Button { Haptics.tap(); if !isDefault { pendingDefault = m } } label: {
+                    Image(systemName: isDefault ? "star.fill" : "star").font(.system(size: 21))
+                        .foregroundStyle(isDefault ? Palette.gold : Palette.text.opacity(0.7))
+                        .frame(width: 46, height: 46).background(Circle().fill(isDefault ? Palette.gold.opacity(0.16) : Palette.surface))
+                }
+                .accessibilityLabel(isDefault ? "Default masjid" : "Set \(m.name) as default")
             }
         }
-        .padding(.vertical, 16)
-        .task { if app.days[m.slug] == nil { await app.loadDay(m.slug) } }
+        .padding(.vertical, 14)
     }
 
     private func emptyText(_ s: String) -> some View {
@@ -210,7 +201,7 @@ struct MasjidsView: View {
                     MasjidLogo(mosque: m, size: 70)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(m.name).font(.system(size: 20, weight: .bold))
-                        Text(m.addressLine).font(.system(size: 15)).foregroundStyle(Palette.muted)
+                        Text([Directory.cityOf(m), m.shortLine].filter { !$0.isEmpty }.joined(separator: " · ")).font(.system(size: 15)).foregroundStyle(Palette.muted)
                     }
                     Spacer(minLength: 0)
                 }
@@ -246,7 +237,7 @@ struct MapsSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 14) {
-                Image(systemName: "mappin.and.ellipse").font(.system(size: 22)).foregroundStyle(Palette.coral)
+                Image(systemName: "location").font(.system(size: 22)).foregroundStyle(Palette.coral)
                     .frame(width: 54, height: 54).background(Circle().fill(Palette.coralSoft))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Open in Maps").font(.system(size: 24, weight: .bold))
@@ -291,6 +282,7 @@ struct MapsSheet: View {
 struct MasjidDetailView: View {
     @EnvironmentObject var app: AppState
     let mosque: Mosque
+    @Environment(\.dismiss) private var dismiss
     @State private var showMaps = false
 
     var body: some View {
@@ -315,18 +307,24 @@ struct MasjidDetailView: View {
                 } else {
                     Text(app.dayNotes[mosque.slug] ?? "Loading times…").foregroundStyle(Palette.muted)
                 }
-                Button { showMaps = true } label: { Label("Open in Maps", systemImage: "mappin.and.ellipse") }.buttonStyle(SoftButtonStyle())
+                Button { showMaps = true } label: { Label("Open in Maps", systemImage: "location") }.buttonStyle(SoftButtonStyle())
                 if mosque.slug == app.defaultSlug {
                     Button("Default masjid") {}.buttonStyle(TealButtonStyle(enabled: false)).disabled(true)
                 } else {
                     Button("Set as Default") { Task { await app.setDefault(mosque) } }.buttonStyle(TealButtonStyle())
                 }
             }
-            .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 24)
+            .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 130)   // clears the floating tab bar
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HStack {
+                Button { Haptics.tap(); dismiss() } label: { RoundIcon(system: "chevron.left", size: 44) }.accessibilityLabel("Back")
+                Spacer()
+            }
+            .padding(.horizontal, 20).padding(.vertical, 6)
         }
         .background(Palette.bg.ignoresSafeArea())
-        .toolbar(.visible, for: .navigationBar)
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showMaps) { MapsSheet(mosque: mosque) }
         .task { await app.loadDay(mosque.slug) }
         .refreshable { await app.loadDay(mosque.slug) }

@@ -31,17 +31,16 @@ struct PrayerWidgetsApp: App {
 private struct TabSpec: Identifiable {
     let id: Int
     let title: String
-    let icon: String
-    let tint: Color
-    let wash: Color
+    let icon: String          // outline symbol; "dome" draws the custom dome
+    let iconOn: String        // filled symbol when selected
 }
 
 private let tabs: [TabSpec] = [
-    TabSpec(id: 0, title: "Home", icon: "house.fill", tint: Palette.teal, wash: Palette.tealSoft),
-    TabSpec(id: 1, title: "Masjids", icon: "building.columns", tint: Palette.coral, wash: Palette.coralSoft),
-    TabSpec(id: 2, title: "Qibla", icon: "safari.fill", tint: Palette.teal, wash: Palette.tealSoft),
-    TabSpec(id: 3, title: "Widget", icon: "square.grid.2x2.fill", tint: Palette.teal, wash: Palette.tealSoft),
-    TabSpec(id: 4, title: "Settings", icon: "gearshape.fill", tint: Palette.teal, wash: Palette.tealSoft),
+    TabSpec(id: 0, title: "Home", icon: "house", iconOn: "house.fill"),
+    TabSpec(id: 1, title: "Masjids", icon: "dome", iconOn: "dome"),
+    TabSpec(id: 2, title: "Qibla", icon: "safari", iconOn: "safari.fill"),
+    TabSpec(id: 3, title: "Widget", icon: "square.grid.2x2", iconOn: "square.grid.2x2.fill"),
+    TabSpec(id: 4, title: "Settings", icon: "gearshape", iconOn: "gearshape.fill"),
 ]
 
 struct RootView: View {
@@ -77,12 +76,16 @@ struct RootView: View {
                     if !on { Haptics.tap(); withAnimation(.easeInOut(duration: 0.2)) { app.selectedTab = t.id } }
                 } label: {
                     VStack(spacing: 3) {
-                        Image(systemName: t.icon).font(.system(size: 22)).frame(height: 26)
+                        Group {
+                            if t.icon == "dome" { DomeGlyph(filled: on, size: 26) }
+                            else { Image(systemName: on ? t.iconOn : t.icon).font(.system(size: 22)) }
+                        }
+                        .frame(height: 26)
                         Text(t.title).font(.system(size: 12, weight: on ? .semibold : .medium))
                     }
-                    .foregroundStyle(on ? t.tint : Palette.text)
+                    .foregroundStyle(on ? Palette.teal : Palette.tealMid.opacity(0.75))
                     .frame(maxWidth: .infinity).padding(.vertical, 8)
-                    .background(Capsule().fill(on ? t.wash : Color.clear))
+                    .background(Capsule().fill(on ? Palette.tealSoft : Color.clear))
                     .contentShape(Capsule())
                 }
                 .accessibilityLabel(t.title)

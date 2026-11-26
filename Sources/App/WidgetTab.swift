@@ -54,16 +54,14 @@ private struct CustomisePane: View {
         .sheet(item: $sheet) { OptionSheet(kind: $0) }
     }
 
-    private func preview(_ size: WidgetSize) -> some View {
-        WidgetPreviewCard(day: app.defaultDay, theme: app.theme(size), layout: app.layout(size).resolved(for: size), size: size, now: Date())
+    @ViewBuilder private func preview(_ size: WidgetSize) -> some View {
+        let card = WidgetPreviewCard(day: app.defaultDay, theme: app.theme(size), layout: app.layout(size).resolved(for: size), size: size, now: Date())
+        if size == .medium { FitPreview(width: 338, height: 158) { card } } else { card }
     }
 
     @ViewBuilder private func section(_ size: WidgetSize) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Palette.tealMid.opacity(0.85)).frame(width: size == .small ? 26 : 34, height: 24)
-                Text(size.title).font(.system(size: 27, weight: .bold)).foregroundStyle(Palette.tealDeep)
-            }
+            Text(size.title).font(.system(size: 27, weight: .bold)).foregroundStyle(Palette.tealDeep)
             if size == .small {
                 HStack(spacing: 18) {
                     preview(size)
@@ -100,6 +98,23 @@ struct OptionSheetKind: Identifiable {
     let size: WidgetSize
     let theme: Bool
     var id: String { "\(size.rawValue).\(theme)" }
+}
+
+/// Shrinks a fixed-size widget picture to fit the space it is given (never enlarges), so its rounded corners are never cut off.
+struct FitPreview<Content: View>: View {
+    let width: CGFloat
+    let height: CGFloat
+    @ViewBuilder var content: Content
+    var body: some View {
+        GeometryReader { g in
+            let s = min(1, g.size.width / width)
+            content.frame(width: width, height: height)
+                .scaleEffect(s)
+                .frame(width: width * s, height: height * s)
+                .position(x: g.size.width / 2, y: g.size.height / 2)
+        }
+        .frame(height: height)
+    }
 }
 
 /// One preview at a time, swipe or use the arrows; nothing is saved until "Set".
@@ -148,10 +163,12 @@ private struct OptionSheet: View {
     }
 
     @ViewBuilder private func preview(_ i: Int) -> some View {
-        if kind.theme {
-            WidgetPreviewCard(day: app.defaultDay, theme: themes[i], layout: app.layout(kind.size).resolved(for: kind.size), size: kind.size, now: Date())
-        } else {
-            WidgetPreviewCard(day: app.defaultDay, theme: app.theme(kind.size), layout: layouts[i], size: kind.size, now: Date())
+        FitPreview(width: kind.size == .small ? 158 : 338, height: 158) {
+            if kind.theme {
+                WidgetPreviewCard(day: app.defaultDay, theme: themes[i], layout: app.layout(kind.size).resolved(for: kind.size), size: kind.size, now: Date())
+            } else {
+                WidgetPreviewCard(day: app.defaultDay, theme: app.theme(kind.size), layout: layouts[i], size: kind.size, now: Date())
+            }
         }
     }
     private func title(_ i: Int) -> String { kind.theme ? themes[i].name : layouts[i].title }

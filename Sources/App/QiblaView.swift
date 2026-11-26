@@ -73,7 +73,7 @@ struct QiblaView: View {
         VStack(spacing: 0) {
             Button { Haptics.tap(); showChooser = true } label: {
                 HStack(spacing: 14) {
-                    Image(systemName: "mappin.and.ellipse").font(.system(size: 18)).foregroundStyle(Palette.text)
+                    Image(systemName: "location").font(.system(size: 18)).foregroundStyle(Palette.text)
                         .frame(width: 46, height: 46).background(Circle().fill(Palette.surface))
                     Text(title).font(.system(size: 22, weight: .semibold)).foregroundStyle(Palette.text)
                     Spacer()
@@ -272,7 +272,7 @@ struct ChooseLocationSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 14) {
-                Image(systemName: "mappin.and.ellipse").font(.system(size: 22)).foregroundStyle(Palette.goldDeep)
+                Image(systemName: "location").font(.system(size: 22)).foregroundStyle(Palette.goldDeep)
                     .frame(width: 54, height: 54).background(Circle().fill(Palette.coralSoft))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Choose Location").font(.system(size: 26, weight: .bold))
@@ -298,7 +298,7 @@ struct ChooseLocationSheet: View {
                     ForEach(list) { p in
                         Button { Haptics.tap(); onChoose(p); dismiss() } label: {
                             HStack(spacing: 14) {
-                                Image(systemName: "mappin.and.ellipse").font(.system(size: 16)).foregroundStyle(Palette.goldDeep)
+                                Image(systemName: "location").font(.system(size: 16)).foregroundStyle(Palette.goldDeep)
                                     .frame(width: 40, height: 40).background(Circle().fill(Palette.coralSoft))
                                 Text(p.name).font(.system(size: 19)).foregroundStyle(Palette.text)
                                 Spacer()

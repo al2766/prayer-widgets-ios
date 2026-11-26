@@ -22,6 +22,14 @@ public struct Mosque: Codable, Hashable, Identifiable {
     public var cityLine: String { [city, "UK"].compactMap { $0 }.joined(separator: ", ") }
     /// The street address when known, else the city line.
     public var addressLine: String { (address?.isEmpty == false ? address : nil) ?? cityLine }
+    /// The UK postcode found inside the address ("M14 4HY"), else nil. Used for the short line in the masjid list.
+    public var postcode: String? {
+        guard let a = address,
+              let r = a.range(of: #"[A-Za-z]{1,2}[0-9][A-Za-z0-9]?\s?[0-9][A-Za-z]{2}"#, options: .regularExpression) else { return nil }
+        return a[r].uppercased()
+    }
+    /// Short second line for lists: the postcode when known, else the area.
+    public var shortLine: String { postcode ?? area ?? "" }
 }
 
 public struct MosqueList: Codable {

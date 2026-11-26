@@ -19,6 +19,7 @@ enum Palette {
     static let text = Color(hex: 0x14262B)
     static let muted = Color(hex: 0x6E716F)
     static let line = Color(hex: 0xE5DED2)
+    static let nextRow = Color(hex: 0xE3EFE9)       // pale green: next prayer row, Jumu'ah row
 }
 
 enum Haptics {
@@ -111,4 +112,27 @@ struct MasjidLogo: View {
             Rectangle().fill(Palette.teal).frame(width: size * 0.48, height: 2.4).offset(y: size * 0.13)
         }
     }
+}
+
+/// Outlined (or filled) dome, used as the Masjids tab icon and for Jumu'ah.
+struct DomeGlyph: View {
+    var filled = false
+    var size: CGFloat = 24
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            if filled { DomeShape().fill() .frame(width: size * 0.86, height: size * 0.56) .offset(y: -size * 0.06) }
+            else { DomeShape().stroke(style: StrokeStyle(lineWidth: max(1.6, size * 0.085), lineJoin: .round)).frame(width: size * 0.86, height: size * 0.56).offset(y: -size * 0.06) }
+            Capsule().frame(width: size, height: max(1.8, size * 0.09))
+        }
+        .frame(width: size, height: size * 0.8)
+    }
+}
+
+/// Keeps the edge swipe-back working on screens that hide the system navigation bar.
+extension UINavigationController: UIGestureRecognizerDelegate {
+    open override func viewDidLoad() {
+        super.viewDidLoad()
+        interactivePopGestureRecognizer?.delegate = self
+    }
+    public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool { viewControllers.count > 1 }
 }

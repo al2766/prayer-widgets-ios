@@ -21,28 +21,32 @@ struct TimetableView: View {
             ForEach(Array(rows.enumerated()), id: \.element.prayer) { i, row in
                 let on = row.prayer == next?.row.prayer && row.prayer != .sunrise
                 let isSunrise = row.prayer == .sunrise
-                HStack {
+                HStack(spacing: 10) {
+                    if isSunrise { Image(systemName: "sunrise").font(.system(size: 22)).foregroundStyle(Palette.gold).frame(width: 40) }
                     Text(row.prayer.title).fontWeight(isSunrise ? .regular : .bold)
                     Spacer(minLength: 4)
                     Text(row.begins ?? "–").frame(width: 78, alignment: .trailing)
                     Text(isSunrise ? "" : (row.jamaah ?? "–")).frame(width: 78, alignment: .trailing)
                 }
                 .font(.system(size: isSunrise ? 19 : 21)).monospacedDigit()
-                .foregroundStyle(on ? Color.white : (isSunrise ? Palette.muted : Palette.text))
+                .foregroundStyle(isSunrise ? Palette.muted : Palette.text)
                 .padding(.horizontal, 18).padding(.vertical, isSunrise ? 12 : 15)
-                .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(on ? Palette.teal : Color.clear))
+                .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(on ? Palette.nextRow : Color.clear))
                 .animation(.easeInOut(duration: 0.3), value: on)
                 if i < rows.count - 1, !on, rows[i + 1].prayer != next?.row.prayer { Divider().overlay(Palette.line).padding(.horizontal, 10) }
             }
 
             ForEach(Array(day.jumuah.enumerated()), id: \.offset) { i, t in
                 Divider().overlay(Palette.line).padding(.horizontal, 10)
-                HStack {
+                HStack(spacing: 12) {
+                    DomeGlyph(size: 26)
                     Text(day.jumuah.count > 1 ? "Jumu'ah \(i + 1)" : "Jumu'ah").fontWeight(.bold)
                     Spacer()
-                    Text(t).monospacedDigit()
+                    Text(t).monospacedDigit().frame(width: 78, alignment: .trailing)
                 }
-                .font(.system(size: 21)).padding(.horizontal, 18).padding(.vertical, 15)
+                .font(.system(size: 21)).foregroundStyle(Palette.teal)
+                .padding(.horizontal, 18).padding(.vertical, 15)
+                .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Palette.nextRow))
             }
         }
     }

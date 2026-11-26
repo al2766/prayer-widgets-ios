@@ -16,7 +16,12 @@ struct HomeView: View {
                         if let day = app.days[m.slug] {
                             TimelineView(.periodic(from: Date(), by: 15)) { ctx in
                                 VStack(alignment: .leading, spacing: 20) {
-                                    Text(TimeLogic.dayHeading(ctx.date, zoneId: day.mosque.timezone)).font(.system(size: 20, weight: .regular)).foregroundStyle(Palette.muted)
+                                    HStack(spacing: 12) {
+                                        Text(TimeLogic.dayHeading(ctx.date, zoneId: day.mosque.timezone)).font(.system(size: 21, weight: .regular)).foregroundStyle(Palette.muted)
+                                        Spacer(minLength: 0)
+                                        Button { Haptics.tap(); showBell = true } label: { RoundIcon(system: "bell", size: 56) }.accessibilityLabel("Notifications")
+                                        Button { Haptics.tap(); showMaps = true } label: { RoundIcon(system: "location", size: 56) }.accessibilityLabel("Open in Maps")
+                                    }
                                     if !TimeLogic.isToday(day, now: ctx.date) { OldTimesBanner(day: day) }
                                     if let n = TimeLogic.next(day, after: ctx.date), TimeLogic.isToday(day, now: ctx.date) { NextPrayerCard(next: n, now: ctx.date) }
                                     TimetableView(day: day, now: ctx.date)
@@ -36,24 +41,25 @@ struct HomeView: View {
             .background(Palette.bg.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showPicker) { DefaultPickerSheet() }
+            .sheet(isPresented: $showMaps) { if let m = app.defaultMosque { MapsSheet(mosque: m) } }
             .navigationDestination(isPresented: $showBell) { NotificationsView() }
         }
     }
 
     private func header(_ m: Mosque) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Button { Haptics.tap(); showPicker = true } label: {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(m.name).font(.system(size: 31, weight: .bold)).foregroundStyle(Palette.text).multilineTextAlignment(.leading)
-                    Text(m.addressLine).font(.system(size: 16)).foregroundStyle(Palette.muted).multilineTextAlignment(.leading)
+        Button { Haptics.tap(); showPicker = true } label: {
+            HStack(alignment: .center, spacing: 16) {
+                MasjidLogo(mosque: m, size: 84)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(m.name).font(.system(size: 33, weight: .bold)).foregroundStyle(Palette.text)
+                        .multilineTextAlignment(.leading).lineLimit(2).minimumScaleFactor(0.75)
+                    Text(m.addressLine).font(.system(size: 16)).foregroundStyle(Palette.muted)
+                        .multilineTextAlignment(.leading).lineLimit(2).minimumScaleFactor(0.8)
                 }
+                Spacer(minLength: 0)
             }
-            .buttonStyle(.plain)
-            Spacer(minLength: 0)
-            Button { Haptics.tap(); showBell = true } label: { RoundIcon(system: "bell") }.accessibilityLabel("Notifications")
-            Button { Haptics.tap(); showMaps = true } label: { RoundIcon(system: "mappin.and.ellipse") }.accessibilityLabel("Open in Maps")
         }
-        .sheet(isPresented: $showMaps) { MapsSheet(mosque: m) }
+        .buttonStyle(.plain)
     }
 
     private var empty: some View {
@@ -67,31 +73,68 @@ struct HomeView: View {
     }
 }
 
-/// The deep teal card: next prayer, its time (jama'ah when published), a live countdown and the dome on its hill.
+/// The deep teal card: next prayer, its start and jama'ah times, a live countdown, and a sunrise over the dome.
 struct NextPrayerCard: View {
     let next: (row: Row, at: Date)
     let now: Date
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(LinearGradient(colors: [Palette.tealMid, Palette.tealDeep], startPoint: .topLeading, endPoint: .bottomTrailing))
-            DomeArt(ink: Color(hex: 0xF4EBDD), glow: Palette.turquoise).frame(width: 190, height: 100).offset(x: 6, y: 0)
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Next Prayer").font(.system(size: 18, weight: .regular)).foregroundStyle(.white.opacity(0.85))
-                HStack(alignment: .firstTextBaseline) {
-                    Text(next.row.prayer.title).font(.system(size: 42, weight: .bold))
-                    Spacer()
-                    Text(next.row.main ?? "").font(.system(size: 42, weight: .bold)).monospacedDigit()
+            SunriseArt().frame(width: 230, height: 104)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Next Prayer").font(.system(size: 19, weight: .regular)).foregroundStyle(.white.opacity(0.9))
+                HStack(alignment: .top, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(next.row.prayer.title).font(.system(size: 44, weight: .bold)).lineLimit(1).minimumScaleFactor(0.6)
+                        Text(TimeLogic.countdown(to: next.at, from: now)).font(.system(size: 22, weight: .semibold)).foregroundStyle(Palette.turquoise).lineLimit(1).minimumScaleFactor(0.7)
+                    }
+                    .layoutPriority(1)
+                    Rectangle().fill(Color.white.opacity(0.28)).frame(width: 1, height: 74).padding(.top, 4)
+                    HStack(spacing: 16) {
+                        timeColumn("Start", next.row.begins)
+                        timeColumn("Jama'ah", next.row.jamaah ?? next.row.main)
+                    }
                 }
                 .foregroundStyle(.white)
-                Text(TimeLogic.countdown(to: next.at, from: now)).font(.system(size: 21, weight: .semibold)).foregroundStyle(Palette.turquoise)
             }
             .padding(.horizontal, 24).padding(.vertical, 22).frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(height: 178)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .frame(height: 196)
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .accessibilityElement(children: .combine)
+    }
+
+    private func timeColumn(_ title: String, _ t: String?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.system(size: 17, weight: .regular)).foregroundStyle(.white.opacity(0.9))
+            Text(t ?? "–").font(.system(size: 31, weight: .bold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+        }
+    }
+}
+
+/// Warm sun rising behind a dome and a minaret, over two teal hills.
+struct SunriseArt: View {
+    var body: some View {
+        GeometryReader { g in
+            let w = g.size.width, h = g.size.height
+            ZStack(alignment: .bottomTrailing) {
+                Circle().fill(LinearGradient(colors: [Color(hex: 0xF6B28A), Color(hex: 0xE98B62)], startPoint: .top, endPoint: .bottom))
+                    .frame(width: h * 1.05, height: h * 1.05).offset(x: -w * 0.30, y: h * 0.42)
+                HillsShape().fill(Palette.tealMid.opacity(0.75)).frame(width: w, height: h * 0.62)
+                HillsShape().fill(Palette.tealDeep.opacity(0.9)).frame(width: w * 0.9, height: h * 0.4)
+                VStack(spacing: 0) {
+                    Circle().fill(Color(hex: 0x1D8F86)).frame(width: 7, height: 7)
+                    Capsule().fill(Color(hex: 0x1D8F86)).frame(width: 5, height: 14)
+                    Rectangle().fill(Color(hex: 0x1D8F86)).frame(width: 11, height: 30)
+                }
+                .offset(x: -w * 0.03, y: -h * 0.20)
+                DomeShape().fill(Color(hex: 0x1D8F86)).frame(width: w * 0.24, height: w * 0.14).offset(x: -w * 0.16, y: -h * 0.17)
+            }
+            .frame(width: w, height: h, alignment: .bottomTrailing)
+        }
+        .allowsHitTesting(false)
     }
 }
 

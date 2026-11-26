@@ -73,3 +73,20 @@ final class DirectoryTests: XCTestCase {
         XCTAssertNil(RequestURL.clean(""))
     }
 }
+
+final class PostcodeTests: XCTestCase {
+    func testPostcodeFromAddress() {
+        let m = Mosque(slug: "a", name: "A", timezone: "Europe/London", city: "Manchester", address: "39 Upper Lloyd Street, Manchester M14 4HY")
+        XCTAssertEqual(m.postcode, "M14 4HY")
+        XCTAssertEqual(m.shortLine, "M14 4HY")
+    }
+    func testNoPostcodeFallsBackToArea() {
+        let m = Mosque(slug: "a", name: "A", timezone: "Europe/London", city: "Leeds", address: "Main Road", area: "Headingley")
+        XCTAssertNil(m.postcode)
+        XCTAssertEqual(m.shortLine, "Headingley")
+    }
+    func testLowercaseAndNoSpace() {
+        let m = Mosque(slug: "a", name: "A", timezone: "Europe/London", address: "1 High St, hp13 6gn")
+        XCTAssertEqual(m.postcode, "HP13 6GN")
+    }
+}
