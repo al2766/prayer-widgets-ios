@@ -23,11 +23,17 @@ struct PrayerEntry: TimelineEntry {
 
 struct PrayerProvider: TimelineProvider {
     func placeholder(in context: Context) -> PrayerEntry {
-        PrayerEntry(date: Date(), mosqueName: "Your masjid", day: nil, note: nil)
+        // Sample times (calculated for London) so the widget gallery and a freshly added widget look right before real times arrive.
+        let sample = Place.suggested.first.flatMap { LocalTimes.day(place: $0, now: Date(), hanafiAsr: false) }
+        return PrayerEntry(date: Date(), mosqueName: "Your masjid", day: sample, note: sample == nil ? "Loading…" : nil)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (PrayerEntry) -> Void) {
-        Task { completion(await load(at: Date()).first ?? placeholder(in: context)) }
+        Task {
+            let first = await load(at: Date()).first
+            // In the gallery, show sample times rather than a setup message.
+            completion(context.isPreview && first?.day == nil ? placeholder(in: context) : (first ?? placeholder(in: context)))
+        }
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<PrayerEntry>) -> Void) {
@@ -122,7 +128,7 @@ struct LockWidgetView: View {
     var body: some View {
         Group {
             if let day = entry.day { grid(day) }
-            else { Text(entry.note ?? "Open the app to set up your prayer times").font(.caption2).multilineTextAlignment(.center) }
+            else { Text(entry.note ?? "Loading…").font(.caption2).multilineTextAlignment(.center) }
         }
         .containerBackground(.clear, for: .widget)
     }

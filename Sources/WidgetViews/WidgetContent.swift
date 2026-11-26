@@ -46,7 +46,7 @@ struct WidgetContent: View {
     private var empty: some View {
         VStack(spacing: 4) {
             Text(mosqueName ?? "Prayer Widgets").font(.headline).lineLimit(2).minimumScaleFactor(0.7)
-            Text(note ?? "Open the app to set up your prayer times").font(.caption).foregroundStyle(secondary).multilineTextAlignment(.center)
+            Text(note ?? "Loading…").font(.caption).foregroundStyle(secondary).multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
