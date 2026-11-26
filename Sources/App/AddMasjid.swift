@@ -6,7 +6,7 @@ struct AddMasjidSheet: View {
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
 
-    enum Route: Hashable { case manual, requests, detail(Mosque) }
+    enum Route: Hashable { case manual, received, requests, detail(Mosque) }
 
     @State private var query = ""
     @State private var city = "All"
@@ -72,7 +72,8 @@ struct AddMasjidSheet: View {
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: Route.self) { r in
                 switch r {
-                case .manual: RequestForm(onSent: { path = NavigationPath(); path.append(Route.requests) })
+                case .manual: RequestForm(onSent: { path = NavigationPath(); path.append(Route.received) })
+                case .received: RequestReceived(done: { dismiss() })
                 case .requests: RequestsPage()
                 case .detail(let m): MasjidDetailView(mosque: m)
                 }
@@ -102,6 +103,27 @@ struct AddMasjidSheet: View {
             Image(systemName: "chevron.right").font(.system(size: 16, weight: .semibold)).foregroundStyle(Palette.muted)
         }
         .padding(.vertical, 12).contentShape(Rectangle())
+    }
+}
+
+/// Shown after a request is sent.
+private struct RequestReceived: View {
+    let done: () -> Void
+    var body: some View {
+        VStack(spacing: 18) {
+            Spacer()
+            Image(systemName: "checkmark").font(.system(size: 52, weight: .medium)).foregroundStyle(Palette.teal)
+                .frame(width: 130, height: 130).background(RoundedRectangle(cornerRadius: 38, style: .continuous).fill(Palette.tealSoft))
+            Text("Request Received").font(.system(size: 34, weight: .bold)).padding(.top, 10)
+            Text("We'll work on adding this masjid's prayer times to the app.")
+                .font(.system(size: 19)).foregroundStyle(Palette.muted).multilineTextAlignment(.center).padding(.horizontal, 30)
+            Spacer()
+            Button("Done") { Haptics.tap(); done() }.buttonStyle(TealButtonStyle())
+        }
+        .padding(.horizontal, 20).padding(.bottom, 24)
+        .background(Palette.bg.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarBackButtonHidden(true)
     }
 }
 
@@ -166,9 +188,20 @@ struct RequestForm: View {
                 if case .failed(let m) = phase { Label(m, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange).font(.system(size: 15)) }
 
                 Button { Task { await send() } } label: {
-                    if phase == .sending { ProgressView().tint(.white) } else { Text("Request Review") }
+                    if phase == .sending { ProgressView().tint(.white) } else { Text("Submit Request") }
                 }
                 .buttonStyle(TealButtonStyle(enabled: canSend)).disabled(!canSend).padding(.top, 8)
+
+                HStack(alignment: .top, spacing: 14) {
+                    Image(systemName: "info.circle").font(.system(size: 24)).foregroundStyle(Palette.teal)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Our team will work on adding the masjid's prayer times within 48 hours.").font(.system(size: 17))
+                        Text("New masjids may take up to 48 hours to appear in the app.").font(.system(size: 16)).foregroundStyle(Palette.muted)
+                    }
+                }
+                .padding(18).frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Palette.nextRow.opacity(0.7)))
+                .padding(.top, 8)
             }
             .padding(.horizontal, 20).padding(.bottom, 24)
         }
