@@ -32,6 +32,11 @@ struct PrayerProvider: TimelineProvider {
                            smallLayout: Store.layoutId(.small), mediumLayout: Store.layoutId(.medium))
     }
 
+    /// What the widget can read right now, so a wrong "not set" message can be traced. Contains no personal data.
+    private static var diag: String {
+        "slug:\(Store.defaultSlug == nil ? "none" : "yes") src:\(Store.source ?? "nil") city:\(Store.place == nil ? "none" : "yes")"
+    }
+
     func getSnapshot(in context: Context, completion: @escaping (PrayerEntry) -> Void) {
         Task {
             let first = await load(at: Date()).first
@@ -63,14 +68,14 @@ struct PrayerProvider: TimelineProvider {
         }
         if !Store.usingMasjid {
             guard let place = Store.place, let day = LocalTimes.day(place: place, now: now, hanafiAsr: Store.hanafiAsr) else {
-                return [entry(now, nil, nil, "No city saved. Open the app to set up your prayer times")]
+                return [entry(now, nil, nil, "No city saved. Open the app to set up your prayer times. [\(Self.diag)]")]
             }
             await Planner.reschedule(for: day)
             let tail = TimeLogic.schedule(day).map(\.at).filter { $0 > now }
             return ([now] + tail).map { entry($0, day.mosque.name, day, nil) }
         }
         guard let slug = Store.defaultSlug else {
-            return [entry(now, nil, nil, "No masjid saved. Open the app to set up your prayer times")]
+            return [entry(now, nil, nil, "No masjid saved. Open the app to set up your prayer times. [\(Self.diag)]")]
         }
         let cache = Cache()
         var day: PrayerResponse?

@@ -18,7 +18,8 @@ public enum Store {
     }
     /// True when Home and the widgets show a chosen masjid's own timetable; false means locally calculated times.
     public static var usingMasjid: Bool {
-        defaultSlug != nil && (source ?? "masjid") == "masjid"
+        // "Local" with no saved city has nothing to show, so a saved default masjid wins.
+        defaultSlug != nil && ((source ?? "masjid") == "masjid" || place == nil)
     }
     /// Whether the first-run questions are done. A phone that already has a default masjid counts as done.
     public static var onboarded: Bool {
